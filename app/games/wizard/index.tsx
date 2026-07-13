@@ -35,6 +35,16 @@ export const wizardDefinition = defineRoundsGame<BidTricksEntry, BaseSettings>(
     roundTitle: (r) =>
       `${t.rounds.round(r + 1)} · ${t.wizard.cards(wizardCards(r))}`,
     turnChip: "dealer",
+    roundWarning: ({ entries, roundIndex }) => {
+      const cards = wizardCards(roundIndex);
+      const enteredTricks = Object.values(entries).reduce(
+        (sum, e) => sum + (e?.tricks ?? 0),
+        0,
+      );
+      return enteredTricks > cards
+        ? t.wizard.tooManyTricks(enteredTricks, cards)
+        : null;
+    },
     verdict: ({ totals, playedRounds, players, state }) =>
       lastRoundVerdict(
         totals,

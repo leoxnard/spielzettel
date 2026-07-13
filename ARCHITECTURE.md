@@ -69,8 +69,12 @@ Gleiche Zelle/gleicher Spieler bleibt bewusst Last-Write-Wins. Boards
 ## Ein neues Spiel hinzufügen
 
 **Rundenbasiert (der Normalfall — Rommé, Uno, Skyjo, Hearts, …):** meist
-reicht der Punkteblock mit passendem Limit. Braucht das Spiel eigene Regeln,
-nutze `defineRoundsGame(meta, config)`
+reicht der Punkteblock mit passendem Limit — dafür **keine** neue Datei
+anlegen, sondern eine Vorlage in `PRESETS`
+([app/games/punkte/index.tsx](app/games/punkte/index.tsx)) ergänzen (Limit +
+Gewinn-/Verlust-Regel). Braucht das Spiel eigene Regeln (z. B. eine
+Ansage-Phase, Bonuspunkte, ein Zusatzfeld pro Runde), nutze
+`defineRoundsGame(meta, config)`
 ([app/games/rounds/defineRoundsGame.tsx](app/games/rounds/defineRoundsGame.tsx)):
 Du lieferst nur Metadaten, Scoring-Regeln (`roundScore`, optional
 `totalScore`, `maxRounds`, `verdict`), einen `EntryEditor` und optional ein

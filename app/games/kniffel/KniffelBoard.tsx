@@ -36,6 +36,13 @@ export function KniffelBoard({
   // Optimistic overlay per cell, keyed "playerId/category". Entries are
   // dropped as soon as the live state confirms them.
   const [pending, setPending] = useState<Record<string, number | null>>({});
+  // Dice-vs-direct choice for the sum modal, owned here so it carries over
+  // between cells instead of resetting every time a modal opens.
+  const [sumInputMode, setSumInputMode] = useState<"dice" | "direct">("dice");
+  // Restrict taps to one player's column to avoid mis-taps during play.
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     setPending((prev) => {
@@ -106,17 +113,33 @@ export function KniffelBoard({
               <th className={cx(labelCell, "text-[11px] font-semibold uppercase tracking-wider text-muted")}>
                 {t.kniffel.category}
               </th>
-              {players.map((p) => (
-                <th key={p.id} className="min-w-24 px-3 py-3">
-                  <span className="inline-flex items-center gap-1.5 font-display text-sm font-semibold">
-                    <span
-                      className="size-2 rounded-full"
-                      style={{ backgroundColor: p.color }}
-                    />
-                    {p.name}
-                  </span>
-                </th>
-              ))}
+              {players.map((p) => {
+                const isSelected = selectedPlayerId === p.id;
+                return (
+                  <th key={p.id} className="min-w-24 px-3 py-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedPlayerId(isSelected ? null : p.id)
+                      }
+                      aria-pressed={isSelected}
+                      title={t.kniffel.selectColumnHint}
+                      className={cx(
+                        "inline-flex items-center gap-1.5 rounded-full px-2 py-1 font-display text-sm font-semibold transition-colors",
+                        isSelected
+                          ? "bg-primary-soft text-primary"
+                          : "hover:bg-field",
+                      )}
+                    >
+                      <span
+                        className="size-2 rounded-full"
+                        style={{ backgroundColor: p.color }}
+                      />
+                      {p.name}
+                    </button>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -133,6 +156,7 @@ export function KniffelBoard({
                 scoreOf={scoreOf}
                 onOpen={(player) => setActive({ def, player })}
                 labelCell={labelCell}
+                selectedPlayerId={selectedPlayerId}
               />
             ))}
             <ComputedRow
@@ -164,6 +188,7 @@ export function KniffelBoard({
                 scoreOf={scoreOf}
                 onOpen={(player) => setActive({ def, player })}
                 labelCell={labelCell}
+                selectedPlayerId={selectedPlayerId}
               />
             ))}
             <tr className="border-t border-border/60 bg-field">
@@ -217,6 +242,8 @@ export function KniffelBoard({
                 ? () => write(active.player, active.def, null)
                 : undefined
             }
+            mode={sumInputMode}
+            onModeChange={setSumInputMode}
           />
         )}
         {active?.def.kind === "fixed" && (
@@ -241,26 +268,33 @@ function CategoryRow({
   scoreOf,
   onOpen,
   labelCell,
+  selectedPlayerId,
 }: {
   def: CategoryDef;
   players: Player[];
   scoreOf: (player: Player, category: CategoryDef["id"]) => number | undefined;
   onOpen: (player: Player) => void;
   labelCell: string;
+  selectedPlayerId: string | null;
 }) {
   return (
     <tr className="border-b border-border/40 last:border-b-0">
       <td className={labelCell}>{t.kniffel.categories[def.id].label}</td>
       {players.map((p) => {
         const value = scoreOf(p, def.id);
+        const locked = selectedPlayerId !== null && selectedPlayerId !== p.id;
         return (
           <td key={p.id} className="p-0">
             <button
               type="button"
               onClick={() => onOpen(p)}
+              disabled={locked}
               aria-label={`${t.kniffel.categories[def.id].label} – ${p.name}`}
               className={cx(
-                "flex h-12 w-full items-center justify-center text-sm transition-colors hover:bg-primary-soft/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
+                "flex h-12 w-full items-center justify-center text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
+                locked
+                  ? "cursor-not-allowed opacity-30"
+                  : "hover:bg-primary-soft/50",
                 value === undefined
                   ? "text-muted/50"
                   : value === 0

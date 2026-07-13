@@ -4,17 +4,25 @@ import { Button } from "~/components/ui/Button";
 import { Input } from "~/components/ui/Input";
 import { cx } from "~/lib/cx";
 import { t } from "~/i18n/de";
+import { secureRandomIndex } from "~/lib/random";
 import type { Player } from "~/lib/types";
 import type { GameBoardProps } from "../types";
+import { LetterReveal } from "./LetterReveal";
 import {
+  buildRound,
+  chooseLetter,
   grandTotal,
-  newRound,
+  LETTERS,
   nextPoints,
   pointsFor,
   roundTotal,
   usedLetters,
   type SlfState,
 } from "./logic";
+
+const REVEAL_TICK_MS = 90;
+const REVEAL_TICKS = 14;
+const REVEAL_HOLD_MS = 900;
 
 export function SlfBoard({
   game,
@@ -28,6 +36,51 @@ export function SlfBoard({
   const round = state.rounds?.[String(roundIndex)];
 
   const [tab, setTab] = useState<"current" | "totals">("current");
+
+  // Big "drum roll" shown while a round's letter is drawn — purely a local
+  // animation; the letter is already chosen and persisted before it starts.
+  const [reveal, setReveal] = useState<{ letter: string; spinning: boolean } | null>(
+    null,
+  );
+  const revealInterval = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const revealTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(
+    () => () => {
+      clearInterval(revealInterval.current);
+      clearTimeout(revealTimeout.current);
+    },
+    [],
+  );
+  const runReveal = (finalLetter: string) => {
+    let ticks = 0;
+    setReveal({ letter: LETTERS[secureRandomIndex(LETTERS.length)], spinning: true });
+    revealInterval.current = setInterval(() => {
+      ticks++;
+      if (ticks >= REVEAL_TICKS) {
+        clearInterval(revealInterval.current);
+        setReveal({ letter: finalLetter, spinning: false });
+        revealTimeout.current = setTimeout(() => setReveal(null), REVEAL_HOLD_MS);
+        return;
+      }
+      setReveal({ letter: LETTERS[secureRandomIndex(LETTERS.length)], spinning: true });
+    }, REVEAL_TICK_MS);
+  };
+
+  // Reveal round 1's letter once, the moment a freshly started game first
+  // renders (nobody has answered yet) — the "opening ceremony" moment.
+  const shownInitialReveal = useRef(false);
+  useEffect(() => {
+    if (shownInitialReveal.current || !round) return;
+    if (
+      roundIndex === 0 &&
+      round.status === "writing" &&
+      Object.keys(round.answers ?? {}).length === 0
+    ) {
+      shownInitialReveal.current = true;
+      runReveal(round.letter);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roundIndex, round]);
 
   // Which player this device is — needed so everyone types their own words.
   const meKey = `spielzettel:me:${game.id}`;
@@ -97,12 +150,14 @@ export function SlfBoard({
 
   const startNextRound = async () => {
     const next = roundIndex + 1;
+    const letter = chooseLetter(usedLetters(state), state.settings.excludedLetters ?? []);
     try {
       await mergeStateAt(
         ["rounds", String(next)],
-        newRound(usedLetters(state)) as unknown as Record<string, never>,
+        buildRound(letter) as unknown as Record<string, never>,
       );
       await setStateAt(["currentRound"], next);
+      runReveal(letter);
     } catch {
       alert(t.error.saveFailed);
     }
@@ -124,6 +179,8 @@ export function SlfBoard({
 
   return (
     <div>
+      {reveal && <LetterReveal letter={reveal.letter} spinning={reveal.spinning} />}
+
       <div className="mb-4 flex gap-1 rounded-xl bg-field p-1">
         {tabButton("current", t.rounds.currentTab)}
         {tabButton("totals", t.rounds.totalsTab)}

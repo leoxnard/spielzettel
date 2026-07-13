@@ -12,20 +12,25 @@ interface SumInputModalProps {
   current?: number;
   onSubmit: (points: number) => void;
   onClear?: () => void;
+  mode: "dice" | "direct";
+  onModeChange: (mode: "dice" | "direct") => void;
 }
 
 /**
  * Sum of all five dice — entered directly with a stepper, or by tapping
- * the dice like a calculator (6 6 5 5 5 → 27).
+ * the dice like a calculator (6 6 5 5 5 → 27). The dice/direct choice is
+ * owned by the board so it carries over to the next cell instead of
+ * resetting to "dice" every time.
  */
 export function SumInputModal({
   def,
   current,
   onSubmit,
   onClear,
+  mode,
+  onModeChange,
 }: SumInputModalProps) {
   const max = def.max ?? 30;
-  const [mode, setMode] = useState<"dice" | "direct">("dice");
   const [value, setValue] = useState(current ?? 0);
   const [dice, setDice] = useState<DieValue[]>([]);
 
@@ -35,7 +40,7 @@ export function SumInputModal({
   const segment = (m: "dice" | "direct", label: string) => (
     <button
       type="button"
-      onClick={() => setMode(m)}
+      onClick={() => onModeChange(m)}
       aria-pressed={mode === m}
       className={cx(
         "flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",

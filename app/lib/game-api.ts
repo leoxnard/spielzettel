@@ -30,6 +30,12 @@ export async function fetchGameByCode(code: string): Promise<GameRow | null> {
   return data as GameRow | null;
 }
 
+/** Permanently deletes a game — used from the "delete running game" action. */
+export async function deleteGame(id: string): Promise<void> {
+  const { error } = await supabase.from("games").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function fetchGameById(id: string): Promise<GameRow | null> {
   const { data, error } = await supabase
     .from("games")

@@ -20,6 +20,7 @@ export function defineRoundsGame<E extends Json, S extends BaseSettings>(
 
   return {
     ...meta,
+    supportsTurnOrder: !!config.turnChip,
     hasStarted: (state) => "rounds" in state,
     createInitialState: (_players: Player[], settings: S) => ({
       settings,

@@ -1,7 +1,10 @@
+import { secureRandomIndex } from "~/lib/random";
 import type { BaseSettings } from "../types";
 
 export interface SlfSettings extends BaseSettings {
   categories: string[];
+  /** Letters the host removed from the draw pool in the lobby. */
+  excludedLetters: string[];
 }
 
 export type SlfRoundStatus = "writing" | "scoring" | "done";
@@ -23,16 +26,27 @@ export interface SlfState {
 }
 
 /** German alphabet without the near-impossible letters. */
-const LETTERS = "ABCDEFGHIJKLMNOPRSTUVWZ".split("");
+export const LETTERS = "ABCDEFGHIJKLMNOPRSTUVWZ".split("");
 
-export function randomLetter(used: string[]): string {
-  const free = LETTERS.filter((l) => !used.includes(l));
-  const pool = free.length > 0 ? free : LETTERS;
-  return pool[Math.floor(Math.random() * pool.length)];
+/**
+ * Picks a letter avoiding both letters already drawn this game and any
+ * letters the host excluded. Falls back to ignoring "used" first, then
+ * "excluded" as a last resort, so the pool is never truly empty.
+ */
+export function chooseLetter(used: string[], excluded: string[]): string {
+  const fresh = LETTERS.filter((l) => !used.includes(l) && !excluded.includes(l));
+  if (fresh.length > 0) return fresh[secureRandomIndex(fresh.length)];
+  const allowed = LETTERS.filter((l) => !excluded.includes(l));
+  const pool = allowed.length > 0 ? allowed : LETTERS;
+  return pool[secureRandomIndex(pool.length)];
 }
 
-export function newRound(used: string[]): SlfRound {
-  return { letter: randomLetter(used), status: "writing", answers: {}, points: {} };
+export function buildRound(letter: string): SlfRound {
+  return { letter, status: "writing", answers: {}, points: {} };
+}
+
+export function newRound(used: string[], excluded: string[]): SlfRound {
+  return buildRound(chooseLetter(used, excluded));
 }
 
 export function usedLetters(state: SlfState): string[] {

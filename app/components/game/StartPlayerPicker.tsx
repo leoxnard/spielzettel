@@ -1,8 +1,10 @@
 import { useRef, useState } from "react";
 
+import { cx } from "~/lib/cx";
 import { Button } from "~/components/ui/Button";
 import { Modal } from "~/components/ui/Modal";
 import { t } from "~/i18n/de";
+import { secureRandomIndex } from "~/lib/random";
 import type { Player } from "~/lib/types";
 
 interface StartPlayerPickerProps {
@@ -33,15 +35,32 @@ export function StartPlayerPicker({
         <span className="text-sm font-medium">{t.lobby.whoStarts}</span>
       </div>
       <p className="mb-3 text-xs text-muted">{t.lobby.whoStartsHint}</p>
-      <div className="flex items-center justify-between gap-3">
-        <span className="inline-flex items-center gap-2 rounded-full bg-field px-3.5 py-2 text-sm font-medium">
-          <span
-            className="size-2.5 rounded-full"
-            style={{ backgroundColor: starter.color }}
-          />
-          {t.lobby.startsChip(displayName(starter, players))}
-        </span>
-        <Button variant="secondary" size="sm" onClick={() => setWheelOpen(true)}>
+      <div className="flex flex-wrap items-center gap-2">
+        {players.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onPick(p.id)}
+            aria-pressed={p.id === starter.id}
+            className={cx(
+              "inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors",
+              p.id === starter.id
+                ? "border-primary bg-primary-soft text-primary"
+                : "border-border text-muted hover:bg-field",
+            )}
+          >
+            <span
+              className="size-2.5 rounded-full"
+              style={{ backgroundColor: p.color }}
+            />
+            {displayName(p, players)}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setWheelOpen(true)}
+          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-dashed border-border px-3.5 text-sm font-medium text-muted transition-colors hover:border-primary hover:text-primary"
+        >
           <svg
             width="14"
             height="14"
@@ -55,7 +74,7 @@ export function StartPlayerPicker({
             <path d="M12 3v9l6.4 6.4M12 12 5.6 18.4M12 12l9-2.4M12 12 3 9.6" />
           </svg>
           {t.lobby.spinWheel}
-        </Button>
+        </button>
       </div>
       <LuckyWheel
         open={wheelOpen}
@@ -95,7 +114,7 @@ function LuckyWheel({
   const slice = 360 / players.length;
 
   const spin = () => {
-    const winnerIndex = Math.floor(Math.random() * players.length);
+    const winnerIndex = secureRandomIndex(players.length);
     const winner = players[winnerIndex];
     // Rotate so the winner's slice center lands under the top pointer,
     // always adding full turns relative to the current rotation.

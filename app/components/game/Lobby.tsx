@@ -4,6 +4,7 @@ import { Button } from "~/components/ui/Button";
 import { Card } from "~/components/ui/Card";
 import { Collapsible } from "~/components/ui/Collapsible";
 import { Input } from "~/components/ui/Input";
+import { Switch } from "~/components/ui/Switch";
 import { t } from "~/i18n/de";
 import { mergePlayer, mergeStateAt, updateGame } from "~/lib/game-api";
 import type { GameRow, Json, Player } from "~/lib/types";
@@ -113,12 +114,25 @@ export function Lobby({ game, definition }: LobbyProps) {
         </div>
 
         {game.players.length > 1 && (
-          <div className="mt-6 border-t border-border/60 pt-5">
+          <div className="mt-6 space-y-4 border-t border-border/60 pt-5">
             <StartPlayerPicker
               players={game.players}
               startPlayerId={settings.startPlayerId}
               onPick={(startPlayerId) => patchSettings({ startPlayerId })}
             />
+            {definition.supportsTurnOrder && (
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">{t.lobby.showTurnOrder}</p>
+                  <p className="text-xs text-muted">{t.lobby.showTurnOrderHint}</p>
+                </div>
+                <Switch
+                  checked={!!settings.showTurnOrder}
+                  onChange={(showTurnOrder) => patchSettings({ showTurnOrder })}
+                  label={t.lobby.showTurnOrder}
+                />
+              </div>
+            )}
           </div>
         )}
 

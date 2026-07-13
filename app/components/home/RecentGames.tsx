@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { Link } from "react-router";
 
 import { Badge } from "~/components/ui/Badge";
 import { getGame } from "~/games/registry";
 import { t } from "~/i18n/de";
-import { useRecentGames } from "~/lib/recent-games";
+import { deleteGame } from "~/lib/game-api";
+import { removeRecentGame, useRecentGames, type RecentGame } from "~/lib/recent-games";
 import type { GameStatus } from "~/lib/types";
 
 function relativeTime(timestamp: number): string {
@@ -23,7 +25,20 @@ const statusLabel: Record<GameStatus, string> = {
 
 export function RecentGames() {
   const recent = useRecentGames();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   if (recent.length === 0) return null;
+
+  const handleDelete = async (game: RecentGame, name: string) => {
+    if (!confirm(t.lobby.deleteGameConfirm(name))) return;
+    setDeletingId(game.id);
+    try {
+      await deleteGame(game.id);
+      removeRecentGame(game.id);
+    } catch {
+      alert(t.error.saveFailed);
+      setDeletingId(null);
+    }
+  };
 
   return (
     <section className="animate-fade-in">
@@ -37,11 +52,12 @@ export function RecentGames() {
         {recent.map((game) => {
           const def = getGame(game.gameType);
           if (!def) return null;
+          const name = game.title || def.name;
           return (
-            <li key={game.id}>
+            <li key={game.id} className="flex items-center gap-2">
               <Link
                 to={`/game/${game.code}`}
-                className="flex items-center justify-between gap-3 rounded-3xl border border-border/60 bg-surface p-4 shadow-sm transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-md"
+                className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-3xl border border-border/60 bg-surface p-4 shadow-sm transition-shadow hover:shadow-md"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -53,7 +69,7 @@ export function RecentGames() {
                     </span>
                   </div>
                   <p className="mt-1.5 truncate font-display text-base font-semibold tracking-tight">
-                    {game.title || def.name}
+                    {name}
                   </p>
                   <p className="truncate text-xs text-muted">
                     {def.name} · <span className="font-mono">{game.code}</span> ·{" "}
@@ -75,6 +91,27 @@ export function RecentGames() {
                   <path d="m9 18 6-6-6-6" />
                 </svg>
               </Link>
+              <button
+                type="button"
+                onClick={() => handleDelete(game, name)}
+                disabled={deletingId === game.id}
+                aria-label={t.lobby.deleteGame}
+                className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border/60 bg-surface text-muted shadow-sm transition-colors hover:border-danger/40 hover:text-danger disabled:opacity-50"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-12" />
+                </svg>
+              </button>
             </li>
           );
         })}

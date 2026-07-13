@@ -27,7 +27,7 @@ function GameCard({
 
   return (
     <Card
-      className="flex flex-col p-6 transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[0_2px_6px_rgb(0_0_0/0.05),0_16px_32px_-16px_rgb(0_0_0/0.15)] animate-fade-in-up"
+      className="flex flex-col p-6 transition-shadow hover:shadow-[0_2px_6px_rgb(0_0_0/0.05),0_16px_32px_-16px_rgb(0_0_0/0.15)] animate-fade-in-up"
       style={{ animationDelay: `${index * 60}ms` }}
     >
       <span

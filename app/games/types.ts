@@ -27,8 +27,10 @@ export interface GameSettingsPanelProps<TSettings> {
 
 /** Settings every game shares; games extend this with their own fields. */
 export interface BaseSettings {
-  /** Chosen in the lobby (list order or lucky wheel). */
+  /** Chosen in the lobby (list order, manual pick, or lucky wheel). */
   startPlayerId?: string;
+  /** Off by default — shows a "wer beginnt/gibt" chip during play. */
+  showTurnOrder?: boolean;
 }
 
 /**
@@ -58,6 +60,8 @@ export interface GameDefinition<
   defaultSettings: TSettings;
   /** Optional lobby section for game-specific settings (limit, categories, …). */
   SettingsPanel?: ComponentType<GameSettingsPanelProps<TSettings>>;
+  /** True if the board can show a "wer beginnt/gibt" chip (rounds games with a turnChip). */
+  supportsTurnOrder?: boolean;
   /** True once the state contains real game data (not just settings). */
   hasStarted: (state: Record<string, Json>) => boolean;
   createInitialState: (players: Player[], settings: TSettings) => TState;

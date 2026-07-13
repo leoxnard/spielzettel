@@ -42,6 +42,12 @@ export function recordRecentGame(entry: RecentGame) {
   notify();
 }
 
+export function removeRecentGame(id: string) {
+  const next = read().filter((g) => g.id !== id);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  notify();
+}
+
 function subscribe(listener: () => void) {
   listeners.push(listener);
   const onStorage = (e: StorageEvent) => {

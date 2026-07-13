@@ -51,6 +51,17 @@ export interface RoundsConfig<
   roundTitle?: (roundIndex: number, players: Player[], settings: S) => string;
   /** Show whose turn it is: rotates from settings.startPlayerId. */
   turnChip?: "starter" | "dealer";
+  /**
+   * Cross-player sanity check for the current round's entries so far
+   * (e.g. Wizard: total tricks taken can't exceed cards dealt). Return a
+   * warning string to show it, or null/undefined when everything's fine.
+   */
+  roundWarning?: (ctx: {
+    entries: Record<string, E | undefined>;
+    players: Player[];
+    roundIndex: number;
+    settings: S;
+  }) => string | null | undefined;
   verdict: (ctx: {
     totals: Record<string, number>;
     state: RoundsState<E, S>;
