@@ -12,6 +12,7 @@ import { normalizeCode } from "~/lib/game-code";
 import { fetchGroupByCode, fetchGroupGames, resetGroupGames } from "~/lib/group-api";
 import { computeGroupStats, type GameEntry, type GroupStats } from "~/lib/group-stats";
 import { PLAYER_COLORS, type GroupMember } from "~/lib/types";
+import { useRealtimeGroup } from "~/lib/use-realtime-group";
 
 export async function loader({ params }: Route.LoaderArgs) {
   const code = normalizeCode(params.code);
@@ -44,6 +45,10 @@ export default function GroupPage({ loaderData }: Route.ComponentProps) {
       playerName: prev?.id === group.id ? prev.playerName : undefined,
     });
   }, [group.id, group.code, group.name]);
+
+  // Live updates: new games, score changes and new members appear without a
+  // manual reload.
+  useRealtimeGroup(group.id, () => revalidator.revalidate());
 
   const stats = computeGroupStats(games);
   const playerName = current?.id === group.id ? current.playerName?.trim() : undefined;

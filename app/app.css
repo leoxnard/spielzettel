@@ -122,6 +122,31 @@ body {
   animation: live-pulse 2s ease-in-out infinite;
 }
 
+/*
+ * Immersive board: a phone held in landscape while playing drops all chrome
+ * (header, footer, back-link, title) and lets the score board fill the screen.
+ * Gated on a short landscape viewport so portrait phones, tablets and desktops
+ * are unaffected. `html.immersive` is set by the game route only while playing.
+ */
+@media (orientation: landscape) and (max-height: 540px) {
+  html.immersive > body > div > header,
+  html.immersive > body > div > footer,
+  html.immersive .game-chrome {
+    display: none;
+  }
+  html.immersive,
+  html.immersive body {
+    height: 100%;
+  }
+  html.immersive .game-main {
+    max-width: none;
+    height: 100dvh;
+    overflow-y: auto;
+    padding: max(0.5rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+    animation: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

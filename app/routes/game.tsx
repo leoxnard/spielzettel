@@ -56,9 +56,19 @@ export default function Game({ loaderData }: Route.ComponentProps) {
     ? definition.getStatusLine(game.state, game.players)
     : null;
 
+  // While a game is being played, a phone in landscape gets an immersive
+  // full-screen board (no header/footer/titles) — see .immersive rules in
+  // app.css. Portrait and larger screens are untouched.
+  useEffect(() => {
+    if (!playing) return;
+    const root = document.documentElement;
+    root.classList.add("immersive");
+    return () => root.classList.remove("immersive");
+  }, [playing]);
+
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6 animate-fade-in-up">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <main className="game-main mx-auto w-full max-w-3xl px-4 py-6 animate-fade-in-up">
+      <div className="game-chrome mb-6 flex flex-wrap items-center justify-between gap-3">
         <Link
           to="/"
           className="inline-flex items-center gap-1 text-sm text-muted transition-colors hover:text-ink"
@@ -108,7 +118,7 @@ export default function Game({ loaderData }: Route.ComponentProps) {
 
       {playing ? (
         <>
-          <div className="mb-6">
+          <div className="game-chrome mb-6">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-accent">
                 {definition.name}

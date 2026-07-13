@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   isRouteErrorResponse,
   Link,
@@ -15,6 +16,7 @@ import { Footer } from "~/components/layout/Footer";
 import { Header } from "~/components/layout/Header";
 import { t } from "~/i18n/de";
 import { THEME_SCRIPT } from "~/lib/theme";
+import { warmUpDatabase } from "~/lib/warmup";
 
 const FAVICON =
   "data:image/svg+xml," +
@@ -62,6 +64,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  // Warm the (possibly paused) database while the user is still on a
+  // Supabase-free page, so the first real call isn't a cold start.
+  useEffect(() => {
+    warmUpDatabase();
+  }, []);
   return <Outlet />;
 }
 

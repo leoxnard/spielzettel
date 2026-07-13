@@ -30,17 +30,21 @@ Kein Login, kein Passwort: In der Topbar tippt man **seinen Namen und einen
 Gruppennamen** ein und ist in dieser Gruppe
 ([GroupMenu](app/components/layout/GroupMenu.tsx)). Der Gruppenname ist der
 Schlüssel (`groups`, unique auf `lower(name)`), also landet derselbe Name immer
-in derselben Gruppe (`findOrCreateGroup`); der eigene Name wird per
-`group_add_member` (dedupe auf `lower(name)`) in `groups.members` eingetragen.
-Die aktuelle Gruppe inkl. eigenem Namen steht lokal in localStorage
-([app/lib/current-group.ts](app/lib/current-group.ts)); „Abmelden" löscht sie
-nur dort.
+in derselben Gruppe. Beitreten ist **ein** Round-Trip: die RPC `group_join`
+legt die Gruppe bei Bedarf an und trägt den eigenen Namen (dedupe auf
+`lower(name)`) in `groups.members` ein. Die aktuelle Gruppe inkl. eigenem Namen
+steht lokal in localStorage ([app/lib/current-group.ts](app/lib/current-group.ts));
+„Abmelden" löscht sie nur dort. Weil die Startseite keine Supabase-Aufrufe macht,
+wäre der erste DB-Treffer sonst ein Kaltstart — deshalb wärmt
+[warmUpDatabase](app/lib/warmup.ts) die DB beim App-Start vor.
 
 Spiele einer Gruppe tragen `games.group_id` und werden mit dem eigenen Namen
 als erstem Spieler vorbelegt; die Gruppenseite (`/group/:code`) lädt sie und
 rechnet daraus Mitglieder, Rangliste, Siege und die volle Spieleliste
 ([app/lib/group-stats.ts](app/lib/group-stats.ts)) — auch laufende und frische
-Lobby-Spiele (mit „Lobby"-Badge). Der Sieger je Spiel kommt aus
+Lobby-Spiele (mit „Lobby"-Badge). Die Seite aktualisiert sich live
+([useRealtimeGroup](app/lib/use-realtime-group.ts) → revalidate bei Spiel-/
+Mitglieder-Änderungen). Der Sieger je Spiel kommt aus
 `GameDefinition.getWinnerIds` (fertiges Ergebnis oder aktueller Führender); die
 Zuordnung zu Spielern läuft über den im Spiel eingetippten Namen. „Statistik
 zurücksetzen" löscht die Spiele der Gruppe.
@@ -86,6 +90,11 @@ Gleiche Zelle/gleicher Spieler bleibt bewusst Last-Write-Wins. Boards
   wieder sichtbar wird; ältere Payloads (per `updated_at`) werden verworfen.
 - Mutationen gehen direkt über supabase-js; einzige Ausnahme ist das Anlegen
   eines Spiels (react-router `action` auf `/` → Redirect zur Lobby).
+- **Immersiver Modus:** Während gespielt wird, setzt `routes/game.tsx`
+  `html.immersive`. Auf einem quer gehaltenen Handy (Landscape, niedrige Höhe)
+  blendet CSS ([app/app.css](app/app.css)) Header/Footer/Titel aus und lässt
+  das Board den ganzen Screen füllen; Portrait und größere Screens bleiben
+  unberührt.
 
 ## Ein neues Spiel hinzufügen
 

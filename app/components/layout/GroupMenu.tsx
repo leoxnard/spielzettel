@@ -7,7 +7,7 @@ import {
   setCurrentGroup,
   useCurrentGroup,
 } from "~/lib/current-group";
-import { addGroupMember, findOrCreateGroup } from "~/lib/group-api";
+import { joinGroup } from "~/lib/group-api";
 
 function GroupIcon() {
   return (
@@ -31,8 +31,7 @@ export function GroupMenu() {
     if (!name.trim() || !userName.trim()) return;
     setBusy(true);
     try {
-      const found = await findOrCreateGroup(name);
-      await addGroupMember(found.code, userName);
+      const found = await joinGroup(name, userName);
       setCurrentGroup({
         id: found.id,
         code: found.code,
