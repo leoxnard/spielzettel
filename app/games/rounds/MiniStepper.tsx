@@ -38,7 +38,7 @@ export function MiniStepper({ value, onChange, min, max, label }: MiniStepperPro
   const step = (delta: 1 | -1) => {
     if (delta === 1 && atMax) return;
     if (delta === -1 && atMin) return;
-    onChange(clamp((value ?? min) + delta));
+    onChange(clamp((value ?? 0) + delta));
   };
 
   return (

@@ -10,9 +10,8 @@ export const de = {
     tagline: "Der elegante Punktezettel für den Spieleabend",
   },
   home: {
-    eyebrow: "Für jeden Spieleabend",
-    headline: "Ein Block,",
-    headlineAccent: "alle am Zug",
+    headline: "Ein Block, um sie alle",
+    headlineAccent: "zu knechten",
     subline:
       "Spiel aussuchen, Code an die Runde schicken, live gemeinsam mitrechnen – auf jedem Handy am Tisch, ganz ohne Zettel oder Account.",
     continueTitle: "Weiterspielen",

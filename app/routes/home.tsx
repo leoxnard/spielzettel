@@ -11,7 +11,7 @@ import { createGame } from "~/lib/game-api";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: `${t.app.name} – ${t.home.eyebrow}` },
+    { title: `${t.app.name} – ${t.app.tagline}` },
     { name: "description", content: t.home.subline },
   ];
 }
