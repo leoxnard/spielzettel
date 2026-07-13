@@ -22,8 +22,29 @@ export interface GameRow {
   status: GameStatus;
   players: Player[];
   state: Record<string, Json>;
+  group_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** A named person in a group; `id` is the lowercased name (dedupe key). */
+export interface GroupMember {
+  id: string;
+  name: string;
+}
+
+/**
+ * A group is identified by its name — enter a name and you're in that group.
+ * People join by entering their own name, which is appended to `members`;
+ * games are tagged with the group's id and stats are derived from the games'
+ * own player names.
+ */
+export interface GroupRow {
+  id: string;
+  code: string;
+  name: string;
+  members: GroupMember[];
+  created_at: string;
 }
 
 /** Assigned round-robin as players are added; tap the number chip to cycle. */

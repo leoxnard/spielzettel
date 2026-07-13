@@ -73,5 +73,12 @@ export interface GameDefinition<
   mergeStateForPlayers: (state: TState, players: Player[]) => TState;
   /** One line under the board title, e.g. "5/26 Felder ausgefüllt" or "Runde 3 von 20". */
   getStatusLine: (state: TState, players: Player[]) => string;
+  /**
+   * Winning player id(s) given the current state — the final winner once
+   * decided, otherwise the current leader. Empty when there's no data yet
+   * (nothing played). Powers group stats/rankings. Ties return everyone
+   * tied for the lead.
+   */
+  getWinnerIds?: (state: TState, players: Player[]) => string[];
   Board: ComponentType<GameBoardProps<TState>>;
 }

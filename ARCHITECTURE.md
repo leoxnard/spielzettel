@@ -24,6 +24,27 @@ app/
 Faustregel: Dateien klein halten. Route-Module orchestrieren nur; Logik liegt
 in `lib/` bzw. im Spiel-Ordner, UI in `components/`.
 
+## Gruppen
+
+Kein Login, kein Passwort: In der Topbar tippt man **seinen Namen und einen
+Gruppennamen** ein und ist in dieser Gruppe
+([GroupMenu](app/components/layout/GroupMenu.tsx)). Der Gruppenname ist der
+Schlüssel (`groups`, unique auf `lower(name)`), also landet derselbe Name immer
+in derselben Gruppe (`findOrCreateGroup`); der eigene Name wird per
+`group_add_member` (dedupe auf `lower(name)`) in `groups.members` eingetragen.
+Die aktuelle Gruppe inkl. eigenem Namen steht lokal in localStorage
+([app/lib/current-group.ts](app/lib/current-group.ts)); „Abmelden" löscht sie
+nur dort.
+
+Spiele einer Gruppe tragen `games.group_id` und werden mit dem eigenen Namen
+als erstem Spieler vorbelegt; die Gruppenseite (`/group/:code`) lädt sie und
+rechnet daraus Mitglieder, Rangliste, Siege und die volle Spieleliste
+([app/lib/group-stats.ts](app/lib/group-stats.ts)) — auch laufende und frische
+Lobby-Spiele (mit „Lobby"-Badge). Der Sieger je Spiel kommt aus
+`GameDefinition.getWinnerIds` (fertiges Ergebnis oder aktueller Führender); die
+Zuordnung zu Spielern läuft über den im Spiel eingetippten Namen. „Statistik
+zurücksetzen" löscht die Spiele der Gruppe.
+
 ## Datenmodell
 
 Eine Tabelle `public.games` (siehe

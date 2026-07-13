@@ -2,7 +2,7 @@ import { t } from "~/i18n/de";
 import type { Player } from "~/lib/types";
 import type { GameDefinition } from "../types";
 import { KniffelBoard } from "./KniffelBoard";
-import { filledCount, playerScores } from "./scoring";
+import { filledCount, grandTotal, playerScores } from "./scoring";
 import { ALL_CATEGORIES, type KniffelState } from "./types";
 
 function KniffelIcon() {
@@ -56,6 +56,15 @@ export const kniffelDefinition: GameDefinition<KniffelState> = {
       0,
     );
     return t.game.progress(filled, players.length * ALL_CATEGORIES.length);
+  },
+  getWinnerIds: (state, players) => {
+    const scored = players.filter(
+      (p) => filledCount(playerScores(state, p.id)) > 0,
+    );
+    if (scored.length === 0) return [];
+    const totalOf = (p: Player) => grandTotal(playerScores(state, p.id));
+    const best = Math.max(...scored.map(totalOf));
+    return scored.filter((p) => totalOf(p) === best).map((p) => p.id);
   },
   Board: KniffelBoard,
 };

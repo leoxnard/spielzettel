@@ -35,14 +35,20 @@ export const wizardDefinition = defineRoundsGame<BidTricksEntry, BaseSettings>(
     roundTitle: (r) =>
       `${t.rounds.round(r + 1)} · ${t.wizard.cards(wizardCards(r))}`,
     turnChip: "dealer",
-    roundWarning: ({ entries, roundIndex }) => {
+    roundWarning: ({ entries, players, roundIndex }) => {
       const cards = wizardCards(roundIndex);
-      const enteredTricks = Object.values(entries).reduce(
-        (sum, e) => sum + (e?.tricks ?? 0),
+      const trickSum = players.reduce(
+        (sum, p) => sum + (entries[p.id]?.tricks ?? 0),
         0,
       );
-      return enteredTricks > cards
-        ? t.wizard.tooManyTricks(enteredTricks, cards)
+      if (trickSum > cards) return t.wizard.tooManyTricks(trickSum, cards);
+      // Once everyone's tricks are in, they must total the cards dealt.
+      const allComplete = players.every((p) => {
+        const e = entries[p.id];
+        return e !== undefined && e.bid !== null && e.tricks !== null;
+      });
+      return allComplete && trickSum !== cards
+        ? t.wizard.tricksMismatch(trickSum, cards)
         : null;
     },
     verdict: ({ totals, playedRounds, players, state }) =>

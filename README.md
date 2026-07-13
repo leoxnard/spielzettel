@@ -4,7 +4,8 @@ Der digitale Punktezettel für den Spieleabend: Spiel wählen, Runde per
 Code/Link teilen, gemeinsam live mitschreiben — auf jedem Gerät, ohne Konto.
 
 Implementierte Spiele: **Punkteblock** (universell, mit Vorlagen für Rommé,
-Uno, Skyjo, Hearts, Canasta, 6 nimmt!, Flip 7, Cabo, Yaniv, Zehntausend & Co.),
+Uno, Mau-Mau, Skyjo, Hearts, Canasta, 6 nimmt!, Flip 7, Cabo, Yaniv,
+Zehntausend, Skat, Schafkopf, Doppelkopf & Co. – optionale Rundensummen-Prüfung),
 **Kniffel**, **Wizard**, **Phase 10**, **Stadt Land Fluss** (live tippen!),
 **Spades**. Neue Spiele sind über das Registry-System schnell ergänzt
 (siehe [ARCHITECTURE.md](ARCHITECTURE.md)).

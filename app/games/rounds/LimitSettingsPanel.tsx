@@ -51,7 +51,9 @@ export function LimitSettingsPanel({
           type="number"
           inputMode="numeric"
           min={1}
-          defaultValue={settings.limit ?? ""}
+          // Controlled so picking a preset (which sets settings.limit)
+          // updates the field, not just the underlying value.
+          value={settings.limit ?? ""}
           onChange={(e) => {
             const n = Number(e.target.value);
             patchSettings({

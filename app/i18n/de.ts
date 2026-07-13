@@ -49,8 +49,10 @@ export const de = {
     wheelResult: (name: string) => `${name} beginnt!`,
     startsChip: (name: string) => `${name} beginnt`,
     settingsLabel: "Einstellungen",
-    showTurnOrder: "Zeigen, wer an der Reihe ist",
-    showTurnOrderHint: "Blendet einen Hinweis im Spiel ein, wer gerade beginnt/gibt.",
+    showTurnOrder: "Startspieler festlegen",
+    showTurnOrderHint:
+      "Ein: wähle, wer beginnt – der Block zeigt dann auch an, wer an der Reihe ist.",
+    showStartPlayerHint: "Ein: wähle, wer die erste Runde beginnt.",
     deleteGame: "Spiel löschen",
     deleteGameConfirm: (name: string) =>
       `„${name}“ wirklich löschen? Das kann nicht rückgängig gemacht werden.`,
@@ -132,6 +134,7 @@ export const de = {
       custom: "Eigene Regeln",
       romme: "Rommé",
       uno: "Uno",
+      maumau: "Mau-Mau",
       skyjo: "Skyjo",
       hearts: "Hearts",
       canasta: "Canasta",
@@ -140,7 +143,16 @@ export const de = {
       cabo: "Cabo",
       yaniv: "Yaniv",
       zehntausend: "Zehntausend (Farkle)",
+      skat: "Skat",
+      schafkopf: "Schafkopf",
+      doppelkopf: "Doppelkopf",
     },
+    roundTotalLabel: "Rundensumme",
+    roundTotalOptional: "(leer = keine Prüfung)",
+    roundTotalHint:
+      "Optionale Kontrolle: warnt, wenn die Punkte einer Runde zusammen nicht diese Summe ergeben (z. B. Hearts 26, Schafkopf 0).",
+    roundTotalMismatch: (sum: number, expected: number) =>
+      `Runde ergibt ${sum} Punkte, erwartet: ${expected}.`,
   },
   wizard: {
     name: "Wizard",
@@ -153,6 +165,8 @@ export const de = {
     cards: (n: number) => `${n} ${n === 1 ? "Karte" : "Karten"}`,
     tooManyTricks: (entered: number, cards: number) =>
       `Zu viele Stiche eingetragen: ${entered} von ${cards} möglichen Stichen dieser Runde.`,
+    tricksMismatch: (entered: number, cards: number) =>
+      `Stiche ergeben zusammen ${entered}, sollten aber ${cards} sein.`,
     howItWorks: [
       "Runde 1 hat eine Karte, jede weitere eine mehr – bis alle Karten verteilt sind.",
       "Vor jeder Runde sagt jeder an, wie viele Stiche er macht. Nach der Runde die echten Stiche eintragen.",
@@ -168,6 +182,10 @@ export const de = {
     boardTitle: "Spades-Block",
     bid: "Gebot",
     tricks: "Stiche",
+    tricksOverflow: (sum: number) =>
+      `Zu viele Stiche: ${sum} eingetragen, aber nur 13 pro Runde möglich.`,
+    tricksMismatch: (sum: number) =>
+      `Stiche ergeben zusammen ${sum}, sollten aber 13 sein.`,
     howItWorks: [
       "Jeder sagt vor der Runde seine Stiche an (Einzelspieler-Wertung).",
       "Gebot geschafft: 10 Punkte je gebotenem Stich, +1 je Extrastich (Bag).",
@@ -276,6 +294,39 @@ export const de = {
       kniffel: { label: "Kniffel", hint: "5 gleiche" },
       chance: { label: "Chance", hint: "Summe aller Würfel" },
     },
+  },
+  group: {
+    sectionTitle: "Gruppe",
+    unnamed: "Gruppe",
+    // Topbar menu
+    enterCta: "Gruppe",
+    enterLabel: "Name und Gruppe eingeben – und du bist dabei:",
+    switchLabel: "Name und Gruppe wechseln:",
+    userPlaceholder: "Dein Name",
+    namePlaceholder: "Gruppenname, z. B. Spieleabend",
+    go: "Los",
+    currentGroup: "Aktuelle Gruppe",
+    viewStats: "Statistik ansehen",
+    logout: "Abmelden",
+    // Group page
+    newGame: "Neues Spiel starten",
+    newGameHint: "Startet ein Spiel, das zu dieser Gruppe zählt.",
+    backToGroups: "Startseite",
+    members: "Mitglieder",
+    membersEmpty: "Noch niemand dabei. Tippe oben deinen Namen ein.",
+    ranking: "Rangliste",
+    rankingEmpty: "Noch keine gewerteten Spiele. Spielt eine Runde!",
+    played: "Spiele",
+    winsLabel: (n: number) => `${n} ${n === 1 ? "Sieg" : "Siege"}`,
+    gamesByType: "Spiele nach Typ",
+    games: "Spiele",
+    gamesEmpty: "Noch keine Spiele. Starte oben eins!",
+    leading: (names: string) => `Führt: ${names}`,
+    lobbyBadge: "Lobby",
+    totalGames: (n: number) => `${n} ${n === 1 ? "Spiel" : "Spiele"}`,
+    reset: "Statistik zurücksetzen",
+    resetConfirm:
+      "Alle gespeicherten Spiele dieser Gruppe löschen? Das kann nicht rückgängig gemacht werden.",
   },
 } as const;
 

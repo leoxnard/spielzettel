@@ -4,13 +4,22 @@ import type { GameRow, GameStatus, Json, Player } from "./types";
 
 const UNIQUE_VIOLATION = "23505";
 
-export async function createGame(gameType: string): Promise<GameRow> {
+export async function createGame(
+  gameType: string,
+  opts?: { groupId?: string; players?: Player[] },
+): Promise<GameRow> {
   let lastError: unknown;
   // Collisions are ~1 in 28M — retry a couple of times just in case.
   for (let attempt = 0; attempt < 3; attempt++) {
+    const insert: Record<string, Json> = {
+      code: generateCode(),
+      game_type: gameType,
+    };
+    if (opts?.groupId) insert.group_id = opts.groupId;
+    if (opts?.players) insert.players = opts.players as unknown as Json;
     const { data, error } = await supabase
       .from("games")
-      .insert({ code: generateCode(), game_type: gameType })
+      .insert(insert)
       .select()
       .single();
     if (!error) return data as GameRow;

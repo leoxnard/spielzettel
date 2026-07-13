@@ -114,22 +114,28 @@ export function Lobby({ game, definition }: LobbyProps) {
         </div>
 
         {game.players.length > 1 && (
-          <div className="mt-6 space-y-4 border-t border-border/60 pt-5">
-            <StartPlayerPicker
-              players={game.players}
-              startPlayerId={settings.startPlayerId}
-              onPick={(startPlayerId) => patchSettings({ startPlayerId })}
-            />
-            {definition.supportsTurnOrder && (
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium">{t.lobby.showTurnOrder}</p>
-                  <p className="text-xs text-muted">{t.lobby.showTurnOrderHint}</p>
-                </div>
-                <Switch
-                  checked={!!settings.showTurnOrder}
-                  onChange={(showTurnOrder) => patchSettings({ showTurnOrder })}
-                  label={t.lobby.showTurnOrder}
+          <div className="mt-6 border-t border-border/60 pt-5">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium">{t.lobby.showTurnOrder}</p>
+                <p className="text-xs text-muted">
+                  {definition.supportsTurnOrder
+                    ? t.lobby.showTurnOrderHint
+                    : t.lobby.showStartPlayerHint}
+                </p>
+              </div>
+              <Switch
+                checked={!!settings.showTurnOrder}
+                onChange={(showTurnOrder) => patchSettings({ showTurnOrder })}
+                label={t.lobby.showTurnOrder}
+              />
+            </div>
+            {settings.showTurnOrder && (
+              <div className="mt-4">
+                <StartPlayerPicker
+                  players={game.players}
+                  startPlayerId={settings.startPlayerId}
+                  onPick={(startPlayerId) => patchSettings({ startPlayerId })}
                 />
               </div>
             )}

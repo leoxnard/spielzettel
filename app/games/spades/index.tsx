@@ -39,6 +39,21 @@ export const spadesDefinition = defineRoundsGame<BidTricksEntry, LimitSettings>(
     roundScore: (e) => spadesRoundScore(e),
     totalScore: (entries) => spadesTotal(entries),
     turnChip: "dealer",
+    // Tricks taken always total 13 in a round (bids need not).
+    roundWarning: ({ entries, players }) => {
+      const trickSum = players.reduce(
+        (sum, p) => sum + (entries[p.id]?.tricks ?? 0),
+        0,
+      );
+      if (trickSum > 13) return t.spades.tricksOverflow(trickSum);
+      const allComplete = players.every((p) => {
+        const e = entries[p.id];
+        return e !== undefined && e.bid !== null && e.tricks !== null;
+      });
+      return allComplete && trickSum !== 13
+        ? t.spades.tricksMismatch(trickSum)
+        : null;
+    },
     verdict: ({ totals, state }) =>
       limitVerdict(totals, state.settings.limit, "win", t.rounds.limitReached),
     EntryEditor: ({ player, value, onChange }) => (

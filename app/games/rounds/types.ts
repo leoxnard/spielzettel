@@ -52,6 +52,11 @@ export interface RoundsConfig<
   /** Show whose turn it is: rotates from settings.startPlayerId. */
   turnChip?: "starter" | "dealer";
   /**
+   * Which direction wins when the game hasn't formally ended yet, for the
+   * current-leader calculation in group stats. Defaults to "high".
+   */
+  leaderDirection?: (settings: S) => "high" | "low";
+  /**
    * Cross-player sanity check for the current round's entries so far
    * (e.g. Wizard: total tricks taken can't exceed cards dealt). Return a
    * warning string to show it, or null/undefined when everything's fine.

@@ -1,7 +1,7 @@
 import { t } from "~/i18n/de";
 import type { Json, Player } from "~/lib/types";
 import type { BaseSettings, GameBoardProps, GameDefinition } from "../types";
-import { verdictOf } from "./engine";
+import { totals as computeTotals, verdictOf } from "./engine";
 import { RoundsBoard } from "./RoundsBoard";
 import type { RoundsConfig, RoundsGameMeta, RoundsState } from "./types";
 
@@ -31,11 +31,26 @@ export function defineRoundsGame<E extends Json, S extends BaseSettings>(
     // have no past entries (scored as 0), so the state carries over as-is.
     mergeStateForPlayers: (state) => state,
     getStatusLine: (state, players) => {
+      // A fresh (un-started) game carries no settings/rounds yet.
+      if (!("rounds" in state)) return t.rounds.round(1);
       const verdict = verdictOf(state, config, players);
       if (verdict.over) return t.rounds.gameOver;
       const max = config.maxRounds?.(players, state.settings) ?? null;
       const current = Math.min(state.currentRound + 1, max ?? Infinity);
       return max ? t.rounds.roundOf(current, max) : t.rounds.round(current);
+    },
+    getWinnerIds: (state, players) => {
+      // No settings/rounds yet, or nothing played → no winner.
+      if (players.length === 0 || !("rounds" in state) || !state.currentRound)
+        return [];
+      const verdict = verdictOf(state, config, players);
+      if (verdict.over) return verdict.winnerIds;
+      // Not finished yet — report the current leader.
+      const scores = computeTotals(state, config, players);
+      const low = config.leaderDirection?.(state.settings) === "low";
+      const values = players.map((p) => scores[p.id]);
+      const best = low ? Math.min(...values) : Math.max(...values);
+      return players.filter((p) => scores[p.id] === best).map((p) => p.id);
     },
     Board,
   };

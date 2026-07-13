@@ -3,7 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import { cx } from "~/lib/cx";
 import { t } from "~/i18n/de";
 import type { GameDefinition } from "../types";
-import { LETTERS, newRound, type SlfSettings, type SlfState } from "./logic";
+import {
+  grandTotal,
+  LETTERS,
+  newRound,
+  type SlfSettings,
+  type SlfState,
+} from "./logic";
 import { SlfBoard } from "./SlfBoard";
 
 function SlfIcon() {
@@ -203,6 +209,15 @@ export const slfDefinition: GameDefinition<SlfState, SlfSettings> = {
     return round
       ? `${t.rounds.round(state.currentRound + 1)} · ${t.slf.letter} ${round.letter}`
       : t.rounds.round(state.currentRound + 1);
+  },
+  getWinnerIds: (state, players) => {
+    const hasScored = Object.values(state.rounds ?? {}).some(
+      (r) => r.status === "done",
+    );
+    if (!hasScored || players.length === 0) return [];
+    const totalOf = (id: string) => grandTotal(state, id);
+    const best = Math.max(...players.map((p) => totalOf(p.id)));
+    return players.filter((p) => totalOf(p.id) === best).map((p) => p.id);
   },
   Board: SlfBoard,
 };
