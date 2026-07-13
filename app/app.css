@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Semantic palette — raw values live here, utilities reference them via
+ * @theme inline below so `.dark` can swap them at runtime.
+ * See DESIGN.md for the rules behind these tokens.
+ */
+:root {
+  --background: oklch(0.966 0.014 90); /* warm cream */
+  --surface: oklch(0.992 0.005 95); /* card white */
+  --ink: oklch(0.29 0.028 195); /* teal-charcoal text */
+  --muted: oklch(0.52 0.016 130); /* secondary text */
+  --primary: oklch(0.46 0.075 180); /* dark teal-green */
+  --primary-ink: oklch(0.99 0.005 95);
+  --primary-soft: oklch(0.93 0.028 175); /* teal tint for chips/hover */
+  --accent: oklch(0.68 0.125 75); /* amber/ochre — dice games */
+  --accent-ink: oklch(0.99 0.005 95);
+  --accent-soft: oklch(0.94 0.045 85);
+  --field: oklch(0.955 0.018 90); /* input backgrounds, sand */
+  --border: oklch(0.895 0.012 90);
+  --danger: oklch(0.55 0.18 25);
+}
+
+.dark {
+  --background: oklch(0.185 0.012 195);
+  --surface: oklch(0.235 0.014 195);
+  --ink: oklch(0.93 0.008 95);
+  --muted: oklch(0.67 0.012 120);
+  --primary: oklch(0.7 0.09 175);
+  --primary-ink: oklch(0.17 0.02 195);
+  --primary-soft: oklch(0.3 0.035 180);
+  --accent: oklch(0.74 0.12 78);
+  --accent-ink: oklch(0.2 0.035 80);
+  --accent-soft: oklch(0.31 0.045 80);
+  --field: oklch(0.27 0.014 195);
+  --border: oklch(0.325 0.012 195);
+  --danger: oklch(0.68 0.17 25);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-field: var(--field);
+  --color-border: var(--border);
+  --color-danger: var(--danger);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+
+  --animate-fade-in-up: fade-in-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in: fade-in 0.25s ease both;
+  --animate-sheet-in: sheet-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-pop-in: pop-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes sheet-in {
+    from {
+      opacity: 0.6;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96) translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+}
+
+html,
+body {
+  @apply bg-background text-ink font-sans antialiased;
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.animate-live-pulse {
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
