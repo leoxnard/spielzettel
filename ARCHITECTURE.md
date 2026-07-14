@@ -26,21 +26,36 @@ in `lib/` bzw. im Spiel-Ordner, UI in `components/`.
 
 ## Gruppen
 
-Kein Login, kein Passwort: In der Topbar tippt man **seinen Namen und einen
-Gruppennamen** ein und ist in dieser Gruppe
-([GroupMenu](app/components/layout/GroupMenu.tsx)). Der Gruppenname ist der
-Schlüssel (`groups`, unique auf `lower(name)`), also landet derselbe Name immer
-in derselben Gruppe. Beitreten ist **ein** Round-Trip: die RPC `group_join`
-legt die Gruppe bei Bedarf an und trägt den eigenen Namen (dedupe auf
-`lower(name)`) in `groups.members` ein. Die aktuelle Gruppe inkl. eigenem Namen
-steht lokal in localStorage ([app/lib/current-group.ts](app/lib/current-group.ts));
-„Abmelden" löscht sie nur dort. Weil die Startseite keine Supabase-Aufrufe macht,
-wäre der erste DB-Treffer sonst ein Kaltstart — deshalb wärmt
+Kein Login, kein Passwort: In der Topbar tippt man einen **Gruppennamen** ein
+(dazu optional ein **Geheimwort**) und ist in dieser Gruppe
+([GroupMenu](app/components/layout/GroupMenu.tsx)). Es gibt keinen persönlichen
+Namen mehr — die Gruppe *ist* die Identität. Schlüssel ist `(lower(name),
+secret_hash)` (`groups`, unique darauf): derselbe Name mit **anderem** Geheimwort
+ist eine **andere** Gruppe, so laufen fremde Runden mit gleichem Namen (oder
+Ratende) nicht versehentlich zusammen. Gespeichert wird nur der md5-Hash des
+Geheimworts, nie das Wort selbst. Beitreten ist **ein** Round-Trip: die RPC
+`group_join(name, secret)` findet-oder-legt die Gruppe an und gibt sie zurück
+(kein Mitglied wird automatisch eingetragen). Wer den Gruppen-Code/-Link kennt,
+kommt über `/group/:code` ohne Geheimwort rein (wie bei Spielen). Die aktuelle
+Gruppe steht lokal in localStorage
+([app/lib/current-group.ts](app/lib/current-group.ts)); „Abmelden" löscht sie
+nur dort. Weil die Startseite keine Supabase-Aufrufe macht, wäre der erste
+DB-Treffer sonst ein Kaltstart — deshalb wärmt
 [warmUpDatabase](app/lib/warmup.ts) die DB beim App-Start vor.
 
-Spiele einer Gruppe tragen `games.group_id` und werden mit dem eigenen Namen
-als erstem Spieler vorbelegt; die Gruppenseite (`/group/:code`) lädt sie und
-rechnet daraus Mitglieder, Rangliste, Siege und die volle Spieleliste
+**Roster:** Kein Owner — **jeder** in der Gruppe darf Mitglieder hinzufügen
+(`group_member_add`), umbenennen (`group_member_rename`), entfernen
+(`group_member_remove`) und zusammenführen. Kein Auth: alles ist eine
+UX-Leitplanke, keine echte Sicherheit.
+
+Spiele einer Gruppe tragen `games.group_id`; Spieler werden erst in der Lobby
+aus dem Roster gewählt (keine Vorbelegung mehr). In der Lobby eines Gruppenspiels
+wählt man Spieler
+**aus dem Roster** statt frei zu tippen
+([GroupPlayerPicker](app/components/game/GroupPlayerPicker.tsx)); ein Feld fügt
+einen neuen Namen dauerhaft zur Gruppe (und zum Spiel) hinzu. Die Gruppenseite
+(`/group/:code`) lädt die Spiele und rechnet daraus Mitglieder, Rangliste, Siege
+und die volle Spieleliste
 ([app/lib/group-stats.ts](app/lib/group-stats.ts)) — auch laufende und frische
 Lobby-Spiele (mit „Lobby"-Badge). Die Seite aktualisiert sich live
 ([useRealtimeGroup](app/lib/use-realtime-group.ts) → revalidate bei Spiel-/

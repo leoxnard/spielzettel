@@ -76,6 +76,8 @@ export interface RoundsConfig<
   EntryEditor: ComponentType<EntryEditorProps<E>>;
   /** Extra per-player line in the totals header (e.g. "Phase 4"). */
   playerMeta?: (playerId: string, state: RoundsState<E, S>) => string | null;
+  /** Group-stats bucket label (e.g. Punkteblock → chosen preset). */
+  groupLabel?: (state: RoundsState<E, S>) => string;
 }
 
 /** Everything needed to register a rounds-based game. */

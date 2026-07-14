@@ -14,6 +14,7 @@ import {
   updateGame,
 } from "~/lib/game-api";
 import { normalizeCode } from "~/lib/game-code";
+import { fetchGroupById } from "~/lib/group-api";
 import { recordRecentGame } from "~/lib/recent-games";
 import { useRealtimeGame } from "~/lib/use-realtime-game";
 
@@ -23,7 +24,9 @@ export async function loader({ params }: Route.LoaderArgs) {
   if (!game || !getGame(game.game_type)) {
     throw data(null, { status: 404 });
   }
-  return { game };
+  // Group games pick players from the group roster in the lobby.
+  const group = game.group_id ? await fetchGroupById(game.group_id) : null;
+  return { game, group };
 }
 
 export function meta({ loaderData }: Route.MetaArgs) {
@@ -37,6 +40,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 export default function Game({ loaderData }: Route.ComponentProps) {
   const game = useRealtimeGame(loaderData.game);
+  const group = loaderData.group;
   const definition = getGame(game.game_type)!;
 
   useEffect(() => {
@@ -48,8 +52,19 @@ export default function Game({ loaderData }: Route.ComponentProps) {
       status: game.status,
       playerCount: game.players.length,
       visitedAt: Date.now(),
+      groupId: group?.id ?? null,
+      groupName: group?.name ?? null,
     });
-  }, [game.id, game.code, game.game_type, game.title, game.status, game.players.length]);
+  }, [
+    game.id,
+    game.code,
+    game.game_type,
+    game.title,
+    game.status,
+    game.players.length,
+    group?.id,
+    group?.name,
+  ]);
 
   const playing = game.status === "playing";
   const statusLine = playing
@@ -106,8 +121,8 @@ export default function Game({ loaderData }: Route.ComponentProps) {
                 strokeLinejoin="round"
                 aria-hidden
               >
-                <path d="M9 14 4 9l5-5" />
-                <path d="M4 9h10a6 6 0 0 1 0 12h-3" />
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
               </svg>
               {t.game.backToLobby}
             </button>
@@ -160,7 +175,7 @@ export default function Game({ loaderData }: Route.ComponentProps) {
               <p className="text-sm text-muted">{definition.lobbySubtitle}</p>
             </div>
           </div>
-          <Lobby game={game} definition={definition} />
+          <Lobby game={game} definition={definition} group={group} />
         </>
       )}
     </main>

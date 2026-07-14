@@ -104,15 +104,32 @@ function PlayerRow({
   onRemove: () => void;
   onMove: (delta: -1 | 1) => void;
 }) {
-  // Local draft so a realtime update from another device never yanks the
-  // cursor mid-word; synced back when the server value changes and the
-  // field is not focused. Saves are debounced per player.
+  // Optimistic local draft: what we show wins until the server confirms our
+  // own edit. `pending` holds the value we've typed but not yet seen echoed
+  // back, so a slow save or a stale realtime payload can't yank the name back
+  // to an old value. Only once the server matches (or we have no local edit)
+  // do we accept the server's value — that keeps other devices' renames live.
   const [draft, setDraft] = useState(player.name);
-  const [focused, setFocused] = useState(false);
+  const pending = useRef<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
-    if (!focused) setDraft(player.name);
-  }, [player.name, focused]);
+    if (pending.current !== null && player.name === pending.current) {
+      pending.current = null;
+    }
+    if (pending.current === null) setDraft(player.name);
+  }, [player.name]);
+
+  const save = (value: string) => {
+    clearTimeout(saveTimer.current);
+    onRename(value);
+  };
+
+  const onType = (value: string) => {
+    setDraft(value);
+    pending.current = value;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => onRename(value), 400);
+  };
 
   const arrow =
     "flex h-4 w-5 items-center justify-center rounded text-muted transition-colors hover:text-ink disabled:opacity-25 disabled:pointer-events-none";
@@ -156,13 +173,8 @@ function PlayerRow({
         value={draft}
         placeholder={`${t.lobby.playerPlaceholder} ${index + 1}`}
         maxLength={24}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        onChange={(e) => {
-          setDraft(e.target.value);
-          clearTimeout(saveTimer.current);
-          saveTimer.current = setTimeout(() => onRename(e.target.value), 400);
-        }}
+        onBlur={() => save(draft)}
+        onChange={(e) => onType(e.target.value)}
       />
       {removable && (
         <button

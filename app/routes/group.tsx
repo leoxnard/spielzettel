@@ -1,17 +1,41 @@
 import { useEffect, useState } from "react";
-import { data, isRouteErrorResponse, Link, useNavigate, useRevalidator } from "react-router";
+import {
+  data,
+  isRouteErrorResponse,
+  Link,
+  useNavigate,
+  useRevalidator,
+} from "react-router";
 
 import type { Route } from "./+types/group";
 import { Button } from "~/components/ui/Button";
 import { Card } from "~/components/ui/Card";
-import { GAMES } from "~/games/registry";
+import { Collapsible } from "~/components/ui/Collapsible";
+import { Modal } from "~/components/ui/Modal";
 import { t } from "~/i18n/de";
-import { getCurrentGroup, setCurrentGroup, useCurrentGroup } from "~/lib/current-group";
-import { createGame } from "~/lib/game-api";
+import { clearCurrentGroup, setCurrentGroup } from "~/lib/current-group";
 import { normalizeCode } from "~/lib/game-code";
-import { fetchGroupByCode, fetchGroupGames, resetGroupGames } from "~/lib/group-api";
-import { computeGroupStats, type GameEntry, type GroupStats } from "~/lib/group-stats";
-import { PLAYER_COLORS, type GroupMember } from "~/lib/types";
+import {
+  addGroupMember,
+  deleteGroup,
+  fetchGroupByCode,
+  fetchGroupGames,
+  mergeGroupPlayers,
+  removeGroupMember,
+  renameGroupMember,
+  resetGroupGames,
+  setGroupSecret,
+} from "~/lib/group-api";
+import {
+  computeGroupStats,
+  computeRanking,
+  gameLabel,
+  type GameEntry,
+  type GroupStats,
+} from "~/lib/group-stats";
+import { type GameRow, type GroupRow } from "~/lib/types";
+
+const norm = (s: string) => s.trim().toLowerCase();
 import { useRealtimeGroup } from "~/lib/use-realtime-group";
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -29,21 +53,13 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 export default function GroupPage({ loaderData }: Route.ComponentProps) {
   const { group, games } = loaderData;
-  const navigate = useNavigate();
   const revalidator = useRevalidator();
-  const current = useCurrentGroup();
+  const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
 
-  // Opening a group (e.g. via a shared link) makes it your current group —
-  // keep your own name if you already had one for this group.
+  // Opening a group (e.g. via a shared link) makes it your current group.
   useEffect(() => {
-    const prev = getCurrentGroup();
-    setCurrentGroup({
-      id: group.id,
-      code: group.code,
-      name: group.name,
-      playerName: prev?.id === group.id ? prev.playerName : undefined,
-    });
+    setCurrentGroup({ id: group.id, code: group.code, name: group.name });
   }, [group.id, group.code, group.name]);
 
   // Live updates: new games, score changes and new members appear without a
@@ -51,21 +67,6 @@ export default function GroupPage({ loaderData }: Route.ComponentProps) {
   useRealtimeGroup(group.id, () => revalidator.revalidate());
 
   const stats = computeGroupStats(games);
-  const playerName = current?.id === group.id ? current.playerName?.trim() : undefined;
-
-  const startGame = async (slug: string) => {
-    setBusy(true);
-    try {
-      const players = playerName
-        ? [{ id: crypto.randomUUID(), name: playerName, color: PLAYER_COLORS[0] }]
-        : undefined;
-      const game = await createGame(slug, { groupId: group.id, players });
-      navigate(`/game/${game.code}`);
-    } catch {
-      alert(t.error.saveFailed);
-      setBusy(false);
-    }
-  };
 
   const reset = async () => {
     if (!confirm(t.group.resetConfirm)) return;
@@ -76,6 +77,19 @@ export default function GroupPage({ loaderData }: Route.ComponentProps) {
     } catch {
       alert(t.error.saveFailed);
     } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!confirm(t.group.deleteConfirm)) return;
+    setBusy(true);
+    try {
+      await deleteGroup(group.id);
+      clearCurrentGroup();
+      navigate("/");
+    } catch {
+      alert(t.error.saveFailed);
       setBusy(false);
     }
   };
@@ -108,34 +122,17 @@ export default function GroupPage({ loaderData }: Route.ComponentProps) {
       </header>
 
       <div className="space-y-5">
-        <Card className="p-5">
-          <p className="mb-1 text-sm font-medium">{t.group.newGame}</p>
-          <p className="mb-3 text-xs text-muted">{t.group.newGameHint}</p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {GAMES.map((g) => (
-              <button
-                key={g.slug}
-                type="button"
-                disabled={busy}
-                onClick={() => startGame(g.slug)}
-                className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2.5 text-left text-sm font-medium shadow-sm transition-colors hover:bg-field disabled:opacity-50"
-              >
-                <span className={`flex size-7 shrink-0 items-center justify-center rounded-lg ${g.iconClass}`}>
-                  {g.icon}
-                </span>
-                <span className="truncate">{g.name}</span>
-              </button>
-            ))}
-          </div>
-        </Card>
+        <Members
+          group={group}
+          games={stats.games.map((e) => e.game)}
+          onChanged={() => revalidator.revalidate()}
+        />
 
-        <Members members={group.members} />
-
-        <Leaderboard stats={stats} />
+        <Leaderboard stats={stats} games={games} />
 
         {stats.byType.length > 0 && (
           <Card className="p-5">
-            <p className="mb-3 text-sm font-medium">{t.group.gamesByType}</p>
+            <p className="mb-3 font-display text-base font-semibold">{t.group.gamesByType}</p>
             <BarList
               items={stats.byType.map((b) => ({ label: b.gameName, value: b.count }))}
             />
@@ -144,21 +141,56 @@ export default function GroupPage({ loaderData }: Route.ComponentProps) {
 
         <GamesList stats={stats} />
 
+        <SecretSettings
+          group={group}
+          onChanged={() => revalidator.revalidate()}
+        />
+
         {stats.totalGames > 0 && (
           <Button variant="danger" className="w-full" onClick={reset} disabled={busy}>
             {t.group.reset}
           </Button>
         )}
+
+        <button
+          type="button"
+          onClick={remove}
+          disabled={busy}
+          className="w-full py-2 text-center text-sm font-medium text-danger transition-opacity hover:opacity-80 disabled:opacity-50"
+        >
+          {t.group.deleteGroup}
+        </button>
       </div>
     </main>
   );
 }
 
-function Leaderboard({ stats }: { stats: GroupStats }) {
-  const ranked = stats.ranking.filter((p) => p.played > 0);
+function Leaderboard({ stats, games }: { stats: GroupStats; games: GameRow[] }) {
+  const [filter, setFilter] = useState("");
+  // Recompute the ranking for the selected game only; "" = all games.
+  const ranking = filter
+    ? computeRanking(games.filter((g) => gameLabel(g) === filter))
+    : stats.ranking;
+  const ranked = ranking.filter((p) => p.played > 0);
   return (
     <Card className="p-5">
-      <p className="mb-3 text-sm font-medium">{t.group.ranking}</p>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="font-display text-base font-semibold">{t.group.ranking}</p>
+        {stats.byType.length > 1 && (
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="h-8 max-w-40 rounded-lg border border-border bg-field px-2.5 text-xs focus:border-primary focus:outline-none"
+          >
+            <option value="">{t.group.rankingAllGames}</option>
+            {stats.byType.map((b) => (
+              <option key={b.gameName} value={b.gameName}>
+                {b.gameName}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
       {ranked.length === 0 ? (
         <p className="text-sm text-muted">{t.group.rankingEmpty}</p>
       ) : (
@@ -193,6 +225,124 @@ function Leaderboard({ stats }: { stats: GroupStats }) {
   );
 }
 
+/** Distinct player identities across the group's games (first spelling wins). */
+function distinctGamePlayers(games: GameRow[]): { id: string; name: string }[] {
+  const byId = new Map<string, string>();
+  for (const g of games) {
+    for (const p of g.players) {
+      const id = norm(p.name);
+      if (id && !byId.has(id)) byId.set(id, p.name.trim());
+    }
+  }
+  return [...byId.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function MergePlayersModal({
+  group,
+  games,
+  open,
+  onClose,
+  onChanged,
+}: {
+  group: GroupRow;
+  games: GameRow[];
+  open: boolean;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const [fromId, setFromId] = useState("");
+  const [toId, setToId] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const players = distinctGamePlayers(games);
+  const byId = new Map(players.map((p) => [p.id, p.name]));
+
+  const coPlayed =
+    !!fromId &&
+    !!toId &&
+    fromId !== toId &&
+    games.some((g) => {
+      const ids = g.players.map((p) => norm(p.name));
+      return ids.includes(fromId) && ids.includes(toId);
+    });
+
+  const canMerge = !!fromId && !!toId && fromId !== toId && !coPlayed && !busy;
+
+  const merge = async () => {
+    const from = byId.get(fromId);
+    const to = byId.get(toId);
+    if (!from || !to || !canMerge) return;
+    if (!confirm(t.group.mergeConfirm(from, to))) return;
+    setBusy(true);
+    try {
+      await mergeGroupPlayers(games, from, to);
+      // Collapse the roster entry too, but only if the merged-away name is
+      // actually a member — renaming a non-member would drop the survivor.
+      if (group.members.some((m) => m.id === fromId)) {
+        await renameGroupMember(group.id, fromId, to);
+      }
+      setFromId("");
+      setToId("");
+      onChanged();
+      onClose();
+    } catch {
+      alert(t.error.saveFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const selectClass =
+    "h-10 min-w-0 flex-1 rounded-lg border border-border bg-field px-2.5 text-sm focus:border-primary focus:outline-none";
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t.group.mergeTitle}
+      subtitle={t.group.mergeHint}
+    >
+      <div className="flex items-center gap-2">
+        <select
+          value={fromId}
+          disabled={busy}
+          onChange={(e) => setFromId(e.target.value)}
+          className={selectClass}
+        >
+          <option value="">{t.group.mergeSelect}</option>
+          {players.map((p) => (
+            <option key={p.id} value={p.id} disabled={p.id === toId}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <span className="shrink-0 text-xs text-muted">{t.group.mergeInto}</span>
+        <select
+          value={toId}
+          disabled={busy}
+          onChange={(e) => setToId(e.target.value)}
+          className={selectClass}
+        >
+          <option value="">{t.group.mergeSelect}</option>
+          {players.map((p) => (
+            <option key={p.id} value={p.id} disabled={p.id === fromId}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {coPlayed && (
+        <p className="mt-2 text-xs text-danger">{t.group.mergeCoPlayed}</p>
+      )}
+      <Button className="mt-4 w-full" onClick={merge} disabled={!canMerge}>
+        {t.group.mergeButton}
+      </Button>
+    </Modal>
+  );
+}
+
 function BarList({ items }: { items: { label: string; value: number }[] }) {
   const max = Math.max(1, ...items.map((i) => i.value));
   return (
@@ -215,39 +365,241 @@ function BarList({ items }: { items: { label: string; value: number }[] }) {
   );
 }
 
-function Members({ members }: { members: GroupMember[] }) {
+function Members({
+  group,
+  games,
+  onChanged,
+}: {
+  group: GroupRow;
+  games: GameRow[];
+  onChanged: () => void;
+}) {
+  const members = group.members;
+  const [newName, setNewName] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
+
+  // Merge needs at least two distinct player identities from the group's games.
+  const canMerge = distinctGamePlayers(games).length >= 2;
+
+  const run = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await fn();
+      onChanged();
+    } catch {
+      alert(t.error.saveFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const add = () => {
+    const name = newName.trim();
+    if (!name) return;
+    setNewName("");
+    run(() => addGroupMember(group.id, name));
+  };
+
+  const saveRename = (oldId: string) => {
+    const name = editName.trim();
+    setEditingId(null);
+    if (!name || name.toLowerCase() === oldId) return;
+    run(() => renameGroupMember(group.id, oldId, name));
+  };
+
   return (
     <Card className="p-5">
-      <p className="mb-3 text-sm font-medium">
-        {t.group.members} {members.length > 0 && (
-          <span className="text-muted">· {members.length}</span>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <p className="font-display text-base font-semibold">
+          {t.group.members}{" "}
+          {members.length > 0 && (
+            <span className="font-sans text-sm font-medium text-muted">· {members.length}</span>
+          )}
+        </p>
+        {canMerge && (
+          <button
+            type="button"
+            onClick={() => setMergeOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-muted transition-colors hover:bg-field hover:text-ink"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m0 8v3a2 2 0 0 0 2 2h3m8-18h3a2 2 0 0 1 2 2v3m0 8v3a2 2 0 0 1-2 2h-3" />
+              <path d="M12 8v8m-4-4h8" />
+            </svg>
+            {t.group.mergeTitle}
+          </button>
         )}
-      </p>
+      </div>
+
       {members.length === 0 ? (
-        <p className="text-sm text-muted">{t.group.membersEmpty}</p>
+        <p className="mb-3 text-sm text-muted">{t.group.membersEmpty}</p>
       ) : (
-        <div className="flex flex-wrap gap-2">
+        <ul className="mb-3 space-y-1.5">
           {members.map((m) => (
-            <span
-              key={m.id}
-              className="inline-flex items-center gap-1.5 rounded-full bg-field px-3 py-1 text-sm font-medium"
-            >
-              <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-ink">
+            <li key={m.id} className="flex items-center gap-2">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-ink">
                 {m.name.trim().charAt(0).toUpperCase()}
               </span>
-              {m.name}
-            </span>
+              {editingId === m.id ? (
+                <input
+                  value={editName}
+                  autoFocus
+                  maxLength={40}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onBlur={() => saveRename(m.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveRename(m.id);
+                    if (e.key === "Escape") setEditingId(null);
+                  }}
+                  className="h-8 flex-1 rounded-lg border border-primary bg-field px-2.5 text-sm focus:outline-none"
+                />
+              ) : (
+                <span className="flex-1 text-sm font-medium">{m.name}</span>
+              )}
+              {editingId !== m.id && (
+                <span className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      setEditingId(m.id);
+                      setEditName(m.name);
+                    }}
+                    aria-label={t.group.renameMember}
+                    title={t.group.renameMember}
+                    className="flex size-7 items-center justify-center rounded-lg text-muted transition-colors hover:bg-field hover:text-ink disabled:opacity-40"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => run(() => removeGroupMember(group.id, m.id))}
+                    aria-label={t.group.removeMember}
+                    title={t.group.removeMember}
+                    className="flex size-7 items-center justify-center rounded-lg text-muted transition-colors hover:bg-field hover:text-danger disabled:opacity-40"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                      <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              )}
+            </li>
           ))}
-        </div>
+        </ul>
       )}
+
+      <form
+        className="flex gap-1.5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          add();
+        }}
+      >
+        <input
+          value={newName}
+          placeholder={t.group.addMemberPlaceholder}
+          maxLength={40}
+          onChange={(e) => setNewName(e.target.value)}
+          className="h-9 flex-1 rounded-lg border border-transparent bg-field px-3 text-sm focus:border-primary focus:outline-none"
+        />
+        <button
+          type="submit"
+          disabled={busy || !newName.trim()}
+          className="shrink-0 rounded-lg bg-primary px-3 text-sm font-medium text-primary-ink transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          {t.group.addMember}
+        </button>
+      </form>
+
+      <MergePlayersModal
+        group={group}
+        games={games}
+        open={mergeOpen}
+        onClose={() => setMergeOpen(false)}
+        onChanged={onChanged}
+      />
     </Card>
+  );
+}
+
+function SecretSettings({
+  group,
+  onChanged,
+}: {
+  group: GroupRow;
+  onChanged: () => void;
+}) {
+  const enabled = !!group.secret;
+  // Write-only: the current password is never shown (password-manager only), so
+  // the field starts blank. Typing + saving sets a new one; saving blank clears.
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await setGroupSecret(group.id, value.trim() || null);
+      setValue("");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      onChanged();
+    } catch {
+      alert(t.error.saveFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Collapsible summary={t.group.secretTitle}>
+      <p className="text-xs text-muted">
+        {enabled ? t.group.secretActiveHint : t.group.secretInactiveHint}
+      </p>
+
+      <form
+        className="mt-3 flex gap-1.5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          save();
+        }}
+      >
+        <input
+          value={value}
+          type="password"
+          autoComplete="new-password"
+          placeholder={t.group.secretInputPlaceholder}
+          maxLength={40}
+          onChange={(e) => {
+            setValue(e.target.value);
+            setSaved(false);
+          }}
+          className="h-9 flex-1 rounded-lg border border-transparent bg-field px-3 text-sm text-ink focus:border-primary focus:outline-none"
+        />
+        <button
+          type="submit"
+          disabled={busy}
+          className="shrink-0 rounded-lg bg-primary px-3 text-sm font-medium text-primary-ink transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          {saved ? t.group.secretSaved : t.group.secretSave}
+        </button>
+      </form>
+      <p className="mt-1.5 text-xs text-muted">{t.group.secretFieldHint}</p>
+    </Collapsible>
   );
 }
 
 function GamesList({ stats }: { stats: GroupStats }) {
   return (
     <Card className="p-5">
-      <p className="mb-3 text-sm font-medium">{t.group.games}</p>
+      <p className="mb-3 font-display text-base font-semibold">{t.group.games}</p>
       {stats.games.length === 0 ? (
         <p className="text-sm text-muted">{t.group.gamesEmpty}</p>
       ) : (

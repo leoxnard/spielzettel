@@ -163,26 +163,6 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
                 )}
               </div>
 
-              {roundWarning && (
-                <p className="mb-4 flex items-start gap-2 rounded-xl bg-accent-soft px-3.5 py-2.5 text-sm text-ink">
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mt-0.5 shrink-0 text-accent"
-                    aria-hidden
-                  >
-                    <path d="M12 9v4m0 4h.01M10.3 3.9 2.5 17.5A1.5 1.5 0 0 0 3.8 20h16.4a1.5 1.5 0 0 0 1.3-2.5L13.7 3.9a1.5 1.5 0 0 0-2.6 0Z" />
-                  </svg>
-                  {roundWarning}
-                </p>
-              )}
-
               <ul className="divide-y divide-border/40">
                 {players.map((player) => {
                   const entry = entryOf(player.id, round);
@@ -217,6 +197,25 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
               </ul>
 
               <div className="mt-4 space-y-2.5">
+                {roundWarning && (
+                  <p className="flex items-start gap-2 rounded-xl bg-accent-soft px-3.5 py-2.5 text-sm text-ink">
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mt-0.5 shrink-0 text-accent"
+                      aria-hidden
+                    >
+                      <path d="M12 9v4m0 4h.01M10.3 3.9 2.5 17.5A1.5 1.5 0 0 0 3.8 20h16.4a1.5 1.5 0 0 0 1.3-2.5L13.7 3.9a1.5 1.5 0 0 0-2.6 0Z" />
+                    </svg>
+                    {roundWarning}
+                  </p>
+                )}
                 <Button
                   className="w-full"
                   onClick={finishRound}

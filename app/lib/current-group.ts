@@ -1,16 +1,14 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * The group you're currently "in" — there's no personal account anymore,
- * the group name is the whole identity. Enter a name and you're in it;
+ * The group you're currently "in" — there's no personal account, the group is
+ * the whole identity. Enter a name (+ optional secret) and you're in it;
  * "logout" just clears this. Stored locally, per device.
  */
 export interface CurrentGroup {
   id: string;
   code: string;
   name: string;
-  /** Your name inside this group — seeds new games and the members list. */
-  playerName?: string;
 }
 
 const STORAGE_KEY = "spielzettel:group";

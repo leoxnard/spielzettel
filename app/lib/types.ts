@@ -34,16 +34,20 @@ export interface GroupMember {
 }
 
 /**
- * A group is identified by its name — enter a name and you're in that group.
- * People join by entering their own name, which is appended to `members`;
- * games are tagged with the group's id and stats are derived from the games'
- * own player names.
+ * A group is identified by its name, which is globally unique — you either log
+ * into an existing one or create a new one. An optional secret acts as a login
+ * password: a group with a secret requires it, a group without one lets anyone
+ * with the name in. There's no personal login and no owner: anyone in the group
+ * manages the roster. Games are tagged with the group's id and stats are derived
+ * from the games' own player names.
  */
 export interface GroupRow {
   id: string;
   code: string;
   name: string;
   members: GroupMember[];
+  /** The login password in plaintext, or null when the group has none. */
+  secret: string | null;
   created_at: string;
 }
 

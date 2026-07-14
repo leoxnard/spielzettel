@@ -10,6 +10,9 @@ export interface RecentGame {
   status: GameStatus;
   playerCount: number;
   visitedAt: number;
+  /** Set when the game belongs to a group; drives the group label + color. */
+  groupId: string | null;
+  groupName: string | null;
 }
 
 const STORAGE_KEY = "spielzettel:recent";

@@ -148,6 +148,12 @@ export const punkteDefinition = defineRoundsGame<number, PunkteSettings>(
     emptyEntry: 0,
     isEntryComplete: () => true,
     roundScore: (entry) => entry,
+    // In group stats, bucket by the chosen preset ("Uno", "Hearts", …) rather
+    // than the generic "Punkteblock"; custom/no preset falls back to "Andere".
+    groupLabel: (state) => {
+      const id = state.settings?.presetId;
+      return id && id !== "custom" ? t.punkte.presets[id] : t.punkte.otherLabel;
+    },
     turnChip: "starter",
     leaderDirection: (s) => (s.limitMode === "lose" ? "low" : "high"),
     roundWarning: ({ entries, players, settings }) => {

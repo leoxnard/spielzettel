@@ -7,22 +7,26 @@ import { Input } from "~/components/ui/Input";
 import { Switch } from "~/components/ui/Switch";
 import { t } from "~/i18n/de";
 import { mergePlayer, mergeStateAt, updateGame } from "~/lib/game-api";
-import type { GameRow, Json, Player } from "~/lib/types";
+import type { GameRow, GroupRow, Json, Player } from "~/lib/types";
 import type { BaseSettings, GameDefinition } from "~/games/types";
+import { GroupPlayerPicker } from "./GroupPlayerPicker";
 import { PlayerList, newPlayer } from "./PlayerList";
 import { StartPlayerPicker } from "./StartPlayerPicker";
 
 interface LobbyProps {
   game: GameRow;
   definition: GameDefinition;
+  group?: GroupRow | null;
 }
 
-export function Lobby({ game, definition }: LobbyProps) {
+export function Lobby({ game, definition, group }: LobbyProps) {
   const [starting, setStarting] = useState(false);
 
-  // Seed the minimum player count once for a freshly created game.
+  // Seed the minimum player count once for a freshly created game — but not
+  // for group games, where players are chosen from the roster (no blanks).
   const seeded = useRef(false);
   useEffect(() => {
+    if (group) return;
     if (seeded.current || game.players.length >= definition.minPlayers) return;
     seeded.current = true;
     const players = [...game.players];
@@ -30,7 +34,7 @@ export function Lobby({ game, definition }: LobbyProps) {
       players.push(newPlayer(players.length));
     }
     updateGame(game.id, { players }).catch(() => {});
-  }, [game.id, game.players.length, definition.minPlayers]);
+  }, [group, game.id, game.players.length, definition.minPlayers]);
 
   // Title: local draft, saved debounced so we don't write on every key.
   const [title, setTitle] = useState(game.title ?? "");
@@ -52,14 +56,50 @@ export function Lobby({ game, definition }: LobbyProps) {
   };
 
   // Lobby-edited settings live in state.settings even before the game
-  // starts; merged over the game's defaults.
+  // starts; merged over the game's defaults. An optimistic overlay makes
+  // toggles/inputs feel instant instead of waiting for the realtime echo:
+  // a patched key is shown immediately and dropped once the server confirms
+  // the same value (so another device's change still comes through live).
+  const [settingsOverlay, setSettingsOverlay] = useState<
+    Record<string, unknown>
+  >({});
+  const serverSettings =
+    (game.state.settings as Record<string, unknown> | undefined) ?? {};
+  useEffect(() => {
+    setSettingsOverlay((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const key of Object.keys(next)) {
+        if (JSON.stringify(serverSettings[key]) === JSON.stringify(next[key])) {
+          delete next[key];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game.state.settings]);
+
   const settings: BaseSettings & Record<string, unknown> = {
     ...definition.defaultSettings,
-    ...((game.state.settings as Record<string, unknown> | undefined) ?? {}),
+    ...serverSettings,
+    ...settingsOverlay,
   };
   const patchSettings = (patch: Record<string, unknown>) => {
+    setSettingsOverlay((prev) => ({ ...prev, ...patch }));
     mergeStateAt(game.id, ["settings"], patch as Record<string, Json>).catch(
-      () => {},
+      () => {
+        // Save failed — drop the optimistic keys so the UI reflects reality.
+        setSettingsOverlay((prev) => {
+          const next = { ...prev };
+          for (const key of Object.keys(patch)) {
+            if (JSON.stringify(next[key]) === JSON.stringify(patch[key])) {
+              delete next[key];
+            }
+          }
+          return next;
+        });
+      },
     );
   };
 
@@ -102,15 +142,24 @@ export function Lobby({ game, definition }: LobbyProps) {
         />
 
         <div className="mt-6">
-          <PlayerList
-            players={game.players}
-            minPlayers={definition.minPlayers}
-            maxPlayers={definition.maxPlayers}
-            onChange={setPlayers}
-            onPatchPlayer={(id, patch) =>
-              mergePlayer(game.id, id, patch).catch(() => {})
-            }
-          />
+          {group ? (
+            <GroupPlayerPicker
+              group={group}
+              players={game.players}
+              maxPlayers={definition.maxPlayers}
+              onChange={setPlayers}
+            />
+          ) : (
+            <PlayerList
+              players={game.players}
+              minPlayers={definition.minPlayers}
+              maxPlayers={definition.maxPlayers}
+              onChange={setPlayers}
+              onPatchPlayer={(id, patch) =>
+                mergePlayer(game.id, id, patch).catch(() => {})
+              }
+            />
+          )}
         </div>
 
         {game.players.length > 1 && (
@@ -144,7 +193,9 @@ export function Lobby({ game, definition }: LobbyProps) {
 
         {SettingsPanel && (
           <div className="mt-6 border-t border-border/60 pt-5">
-            <p className="mb-3 text-sm font-medium">{t.lobby.settingsLabel}</p>
+            <p className="mb-3 font-display text-base font-semibold">
+              {t.lobby.settingsLabel}
+            </p>
             <SettingsPanel
               settings={settings}
               players={game.players}

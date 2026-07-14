@@ -80,5 +80,11 @@ export interface GameDefinition<
    * tied for the lead.
    */
   getWinnerIds?: (state: TState, players: Player[]) => string[];
+  /**
+   * Label for group stats (leaderboard filter + games-by-type). Lets a game
+   * report a more specific bucket than its generic name — e.g. Punkteblock
+   * reports the chosen preset ("Uno", "Hearts") or "Andere". Defaults to `name`.
+   */
+  groupLabel?: (state: TState) => string;
   Board: ComponentType<GameBoardProps<TState>>;
 }

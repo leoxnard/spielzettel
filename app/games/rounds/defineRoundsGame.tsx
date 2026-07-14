@@ -52,6 +52,7 @@ export function defineRoundsGame<E extends Json, S extends BaseSettings>(
       const best = low ? Math.min(...values) : Math.max(...values);
       return players.filter((p) => scores[p.id] === best).map((p) => p.id);
     },
+    groupLabel: config.groupLabel,
     Board,
   };
 }

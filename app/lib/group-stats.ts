@@ -10,6 +10,8 @@ export interface PlayerStat {
 export interface GameEntry {
   game: GameRow;
   gameName: string;
+  /** Stats bucket — the game's `groupLabel` (e.g. preset name) or its name. */
+  gameLabel: string;
   playerNames: string[];
   /** Current leader(s) / final winner(s) — empty when nothing is played yet. */
   leaderNames: string[];
@@ -35,13 +37,24 @@ export interface GroupStats {
 const norm = (name: string) => name.trim().toLowerCase();
 
 /**
- * Aggregates a group's games into a leaderboard + a full game list. Players
- * are identified by name (case-insensitive), taken straight from each game's
- * own player list. Every group game shows up in `games` (so running and
- * freshly-created lobby games stay visible); only games with a determinable
- * result count toward "played"/"wins".
+ * The stats bucket for a game: its `groupLabel` (e.g. Punkteblock's chosen
+ * preset) or, failing that, the game's generic name. Empty for unknown games.
  */
-export function computeGroupStats(games: GameRow[]): GroupStats {
+export function gameLabel(game: GameRow): string {
+  const def = getGame(game.game_type);
+  if (!def) return "";
+  try {
+    return def.groupLabel?.(game.state) ?? def.name;
+  } catch {
+    return def.name;
+  }
+}
+
+/**
+ * Per-player wins/games over a set of games. Extracted so the leaderboard can
+ * be recomputed for a single game filter without re-deriving everything else.
+ */
+export function computeRanking(games: GameRow[]): PlayerStat[] {
   const stats = new Map<string, PlayerStat>();
   const ensure = (name: string): PlayerStat => {
     const key = norm(name);
@@ -53,6 +66,45 @@ export function computeGroupStats(games: GameRow[]): GroupStats {
     return entry;
   };
 
+  for (const game of games) {
+    const def = getGame(game.game_type);
+    if (!def || !def.hasStarted(game.state)) continue;
+
+    let winnerIds: string[] = [];
+    try {
+      winnerIds = def.getWinnerIds?.(game.state, game.players) ?? [];
+    } catch {
+      winnerIds = [];
+    }
+    if (winnerIds.length === 0) continue;
+
+    const winnerNameSet = new Set(
+      winnerIds
+        .map((id) => game.players.find((p) => p.id === id)?.name)
+        .filter((n): n is string => !!n)
+        .map(norm),
+    );
+    for (const player of game.players) {
+      const entry = ensure(player.name);
+      entry.played++;
+      if (winnerNameSet.has(norm(player.name))) entry.wins++;
+    }
+  }
+
+  return [...stats.values()].sort(
+    (a, b) => b.wins - a.wins || b.played - a.played || a.name.localeCompare(b.name),
+  );
+}
+
+/**
+ * Aggregates a group's games into a leaderboard + a game list. Players are
+ * identified by name (case-insensitive), taken straight from each game's own
+ * player list. A game only belongs to the group once it's actually been
+ * started — games abandoned in the lobby are ignored, so a game that was set
+ * up but never played never shows up. Only games with a determinable result
+ * count toward "played"/"wins".
+ */
+export function computeGroupStats(games: GameRow[]): GroupStats {
   const entries: GameEntry[] = [];
   const typeCounts = new Map<string, number>();
   let playedGames = 0;
@@ -61,7 +113,11 @@ export function computeGroupStats(games: GameRow[]): GroupStats {
     const def = getGame(game.game_type);
     if (!def) continue;
 
+    // Games left sitting in the lobby aren't saved to the group — only ones
+    // that were actually started count.
     const started = def.hasStarted(game.state);
+    if (!started) continue;
+
     // A single malformed game must never break the whole group page.
     let winnerIds: string[] = [];
     try {
@@ -83,9 +139,11 @@ export function computeGroupStats(games: GameRow[]): GroupStats {
       statusLine = "";
     }
 
+    const label = gameLabel(game);
     entries.push({
       game,
       gameName: def.name,
+      gameLabel: label,
       playerNames: game.players.map((p) => p.name),
       leaderNames: game.players
         .filter((p) => winnerNameSet.has(norm(p.name)))
@@ -93,25 +151,20 @@ export function computeGroupStats(games: GameRow[]): GroupStats {
       statusLine,
       started,
     });
-    typeCounts.set(def.name, (typeCounts.get(def.name) ?? 0) + 1);
+    typeCounts.set(label, (typeCounts.get(label) ?? 0) + 1);
 
-    // Only played games (with a result) feed the leaderboard.
-    if (winnerIds.length > 0) {
-      playedGames++;
-      for (const player of game.players) {
-        const entry = ensure(player.name);
-        entry.played++;
-        if (winnerNameSet.has(norm(player.name))) entry.wins++;
-      }
-    }
+    if (winnerIds.length > 0) playedGames++;
   }
 
-  const ranking = [...stats.values()].sort(
-    (a, b) => b.wins - a.wins || b.played - a.played || a.name.localeCompare(b.name),
-  );
   const byType = [...typeCounts.entries()]
     .map(([gameName, count]) => ({ gameName, count }))
     .sort((a, b) => b.count - a.count);
 
-  return { ranking, games: entries, byType, totalGames: entries.length, playedGames };
+  return {
+    ranking: computeRanking(games),
+    games: entries,
+    byType,
+    totalGames: entries.length,
+    playedGames,
+  };
 }
