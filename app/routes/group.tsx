@@ -33,6 +33,7 @@ import {
   type GameEntry,
   type GroupStats,
 } from "~/lib/group-stats";
+import { pageMeta } from "~/lib/seo";
 import { type GameRow, type GroupRow } from "~/lib/types";
 
 const norm = (s: string) => s.trim().toLowerCase();
@@ -46,9 +47,14 @@ export async function loader({ params }: Route.LoaderArgs) {
   return { group, games };
 }
 
-export function meta({ loaderData }: Route.MetaArgs) {
+export function meta({ loaderData, params }: Route.MetaArgs) {
   const name = loaderData?.group.name || t.group.sectionTitle;
-  return [{ title: `${name} · ${t.app.name}` }];
+  return pageMeta({
+    title: `${name} · ${t.app.name}`,
+    description: t.app.tagline,
+    path: `/group/${params.code}`,
+    noindex: true,
+  });
 }
 
 export default function GroupPage({ loaderData }: Route.ComponentProps) {

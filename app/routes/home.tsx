@@ -8,11 +8,26 @@ import { RecentGames } from "~/components/home/RecentGames";
 import { getGame } from "~/games/registry";
 import { t } from "~/i18n/de";
 import { createGame } from "~/lib/game-api";
+import { pageMeta, SITE_URL } from "~/lib/seo";
 
 export function meta({}: Route.MetaArgs) {
+  const title = `${t.app.name} – ${t.app.tagline}`;
+  const description = t.home.subline;
   return [
-    { title: `${t.app.name} – ${t.app.tagline}` },
-    { name: "description", content: t.home.subline },
+    ...pageMeta({ title, description, path: "/" }),
+    {
+      "script:ld+json": {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        name: t.app.name,
+        description,
+        url: SITE_URL,
+        applicationCategory: "GameApplication",
+        operatingSystem: "Any",
+        inLanguage: "de",
+        offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
+      },
+    },
   ];
 }
 

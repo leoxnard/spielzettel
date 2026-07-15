@@ -16,6 +16,7 @@ import {
 import { normalizeCode } from "~/lib/game-code";
 import { fetchGroupById } from "~/lib/group-api";
 import { recordRecentGame } from "~/lib/recent-games";
+import { pageMeta } from "~/lib/seo";
 import { useRealtimeGame } from "~/lib/use-realtime-game";
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -29,13 +30,24 @@ export async function loader({ params }: Route.LoaderArgs) {
   return { game, group };
 }
 
-export function meta({ loaderData }: Route.MetaArgs) {
-  if (!loaderData) return [{ title: t.app.name }];
+export function meta({ loaderData, params }: Route.MetaArgs) {
+  const path = `/game/${params.code}`;
+  if (!loaderData) {
+    return pageMeta({
+      title: t.app.name,
+      description: t.home.subline,
+      path,
+      noindex: true,
+    });
+  }
   const name = getGame(loaderData.game.game_type)?.name;
   const title = loaderData.game.title;
-  return [
-    { title: [title, name, t.app.name].filter(Boolean).join(" · ") },
-  ];
+  return pageMeta({
+    title: [title, name, t.app.name].filter(Boolean).join(" · "),
+    description: t.home.subline,
+    path,
+    noindex: true,
+  });
 }
 
 export default function Game({ loaderData }: Route.ComponentProps) {

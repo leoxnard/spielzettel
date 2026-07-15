@@ -3,9 +3,14 @@ import { Link } from "react-router";
 import type { Route } from "./+types/impressum";
 import { Card } from "~/components/ui/Card";
 import { t } from "~/i18n/de";
+import { pageMeta } from "~/lib/seo";
 
 export function meta({}: Route.MetaArgs) {
-  return [{ title: `${t.impressum.title} · ${t.app.name}` }];
+  return pageMeta({
+    title: `${t.impressum.title} · ${t.app.name}`,
+    description: t.app.tagline,
+    path: "/impressum",
+  });
 }
 
 export default function Impressum() {
