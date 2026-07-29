@@ -127,6 +127,7 @@ export const de = {
     keypadDelete: "Löschen",
     keypadSign: "Vorzeichen",
     redoRound: "Wiederherstellen",
+    endGame: "Spiel beenden",
     newGame: "Neue Runde",
     editMode: "Bearbeiten",
     editDone: "Fertig",

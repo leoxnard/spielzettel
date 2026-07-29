@@ -27,14 +27,17 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
   config,
   onNewGame,
   onGameOver,
+  game,
 }: Props<E, S>) {
   const round = state.currentRound;
   const maxRounds = config.maxRounds?.(players, state.settings) ?? null;
   const roundsDone = maxRounds !== null && round >= maxRounds;
 
   const verdict = verdictOf(state, config, players);
+
+  const isFinished = game.status === "finished" || verdict.over;
   const [tab, setTab] = useState<"current" | "totals">(
-    verdict.over || roundsDone ? "totals" : "current",
+    isFinished || roundsDone ? "totals" : "current",
   );
 
   // Auto-finish game when verdict says it's over (only once)
@@ -184,6 +187,22 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
   };
 
   const totals = computeTotals(state, config, players);
+
+  const displayVerdict =
+    isFinished && !verdict.over
+      ? {
+          over: true,
+          winnerIds: Object.entries(totals).length > 0
+            ? (() => {
+                const best = Math.max(...Object.values(totals));
+                return Object.entries(totals)
+                  .filter(([, v]) => v === best)
+                  .map(([id]) => id);
+              })()
+            : [],
+          reason: undefined,
+        }
+      : verdict;
   const starter = starterForRound(players, state.settings, round);
   const roundWarning = config.roundWarning?.({
     entries: Object.fromEntries(players.map((p) => [p.id, entryOf(p.id, round)])),
@@ -209,7 +228,7 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
 
   return (
     <div>
-      {verdict.over && <WinnerBanner verdict={verdict} players={players} onNewGame={onNewGame} />}
+      {isFinished && <WinnerBanner verdict={displayVerdict} players={players} onNewGame={onNewGame} />}
 
       <div className="mb-4 flex gap-1 rounded-xl bg-field p-1">
         {tabButton("current", t.rounds.currentTab)}
@@ -318,9 +337,11 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
           players={players}
           totals={totals}
           playedRounds={playedRounds}
+          isFinished={isFinished}
           onRevertRound={revertRound}
           undoStackLength={undoStack.length}
           onRedoRevert={redoRevert}
+          onGameOver={onGameOver}
           mergeStateAt={mergeStateAt}
         />
       )}
@@ -372,9 +393,11 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
   players,
   totals,
   playedRounds,
+  isFinished,
   onRevertRound,
   undoStackLength,
   onRedoRevert,
+  onGameOver,
   mergeStateAt,
 }: {
   state: RoundsState<E, S>;
@@ -382,9 +405,11 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
   players: Player[];
   totals: Record<string, number>;
   playedRounds: number;
+  isFinished: boolean;
   onRevertRound: () => void;
   undoStackLength: number;
   onRedoRevert: () => void;
+  onGameOver?: () => void;
   mergeStateAt: (path: string[], value: Record<string, Json | null>) => Promise<void>;
 }) {
   const [editMode, setEditMode] = useState(false);
@@ -401,7 +426,7 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
     <div className="overflow-x-auto rounded-3xl border border-border/60 bg-surface shadow-sm">
       <div className="flex items-center justify-between px-5 py-3 border-b border-border/60">
         <span className="text-sm font-medium">{t.rounds.totalsTab}</span>
-        {playedRounds > 0 && (
+      {playedRounds > 0 && !isFinished && (
           <Button
             variant="ghost"
             size="sm"
@@ -486,33 +511,46 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
         </tbody>
       </table>
       {playedRounds > 0 && (
-        <div className="mt-3 flex items-center justify-end gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted"
-            onClick={onRevertRound}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M9 14 4 9l5-5" />
-              <path d="M4 9h10a6 6 0 0 1 0 12h-3" />
-            </svg>
-            {t.rounds.revertRound}
-          </Button>
-          {undoStackLength > 0 && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 px-5 pb-4">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
               className="text-muted"
-              onClick={onRedoRevert}
+              onClick={onRevertRound}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M5 14 9 9 4 4" />
-                <path d="M9 9h10a6 6 0 0 1 0 12h-3" />
+                <path d="M9 14 4 9l5-5" />
+                <path d="M4 9h10a6 6 0 0 1 0 12h-3" />
               </svg>
-              {t.rounds.redoRound}
+              {t.rounds.revertRound}
             </Button>
-          )}
+            {undoStackLength > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted"
+                onClick={onRedoRevert}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M5 14 9 9 4 4" />
+                  <path d="M9 9h10a6 6 0 0 1 0 12h-3" />
+                </svg>
+                {t.rounds.redoRound}
+              </Button>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted"
+            onClick={onGameOver}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+            {t.rounds.endGame}
+          </Button>
         </div>
       )}
     </div>
