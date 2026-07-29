@@ -18,6 +18,8 @@ export interface GameBoardProps<TState> {
   ) => Promise<void>;
   /** Start a new game with the same players and settings. */
   onNewGame?: () => void;
+  /** Called once when the game ends (verdict.over). */
+  onGameOver?: () => void;
 }
 
 export interface GameSettingsPanelProps<TSettings> {

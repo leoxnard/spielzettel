@@ -26,6 +26,7 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
   mergeStateAt,
   config,
   onNewGame,
+  onGameOver,
 }: Props<E, S>) {
   const round = state.currentRound;
   const maxRounds = config.maxRounds?.(players, state.settings) ?? null;
@@ -35,6 +36,15 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
   const [tab, setTab] = useState<"current" | "totals">(
     verdict.over || roundsDone ? "totals" : "current",
   );
+
+  // Auto-finish game when verdict says it's over (only once)
+  const gameOverCalled = useRef(false);
+  useEffect(() => {
+    if (verdict.over && !gameOverCalled.current) {
+      gameOverCalled.current = true;
+      onGameOver?.();
+    }
+  }, [verdict.over, onGameOver]);
 
   // Optimistic overlay keyed "round/playerId", cleared once the server
   // state carries the same entry.

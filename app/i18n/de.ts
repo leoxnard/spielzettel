@@ -15,7 +15,8 @@ export const de = {
     subline:
       "Spiel aussuchen, Code an die Runde schicken, live gemeinsam mitrechnen – auf jedem Handy am Tisch, ganz ohne Zettel oder Account.",
     continueTitle: "Weiterspielen",
-    continueSubtitle: "deine letzten Runden",
+    continueSubtitle: "noch laufende Runden",
+    finishedTitle: "Letzte Spiele",
     running: "Läuft",
     inLobby: "Lobby",
     finished: "Beendet",

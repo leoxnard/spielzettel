@@ -13,6 +13,8 @@ export interface RecentGame {
   /** Set when the game belongs to a group; drives the group label + color. */
   groupId: string | null;
   groupName: string | null;
+  /** Winner names when the game is finished. */
+  winners?: string[];
 }
 
 const STORAGE_KEY = "spielzettel:recent";

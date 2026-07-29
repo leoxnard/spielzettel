@@ -27,7 +27,6 @@ export async function loader({ params }: Route.LoaderArgs) {
   if (!game || !getGame(game.game_type)) {
     throw data(null, { status: 404 });
   }
-  // Group games pick players from the group roster in the lobby.
   const group = game.group_id ? await fetchGroupById(game.group_id) : null;
   return { game, group };
 }
@@ -57,6 +56,14 @@ export default function Game({ loaderData }: Route.ComponentProps) {
   const group = loaderData.group;
   const definition = getGame(game.game_type)!;
 
+  const winnerIds =
+    game.status === "finished"
+      ? definition.getWinnerIds?.(game.state, game.players) ?? []
+      : [];
+  const winnerNames = winnerIds.length
+    ? game.players.filter((p) => winnerIds.includes(p.id)).map((p) => p.name)
+    : [];
+
   useEffect(() => {
     recordRecentGame({
       id: game.id,
@@ -68,6 +75,7 @@ export default function Game({ loaderData }: Route.ComponentProps) {
       visitedAt: Date.now(),
       groupId: group?.id ?? null,
       groupName: group?.name ?? null,
+      winners: winnerNames.length ? winnerNames : undefined,
     });
   }, [
     game.id,
@@ -78,22 +86,41 @@ export default function Game({ loaderData }: Route.ComponentProps) {
     game.players.length,
     group?.id,
     group?.name,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    winnerNames.join(","),
   ]);
 
-  const playing = game.status === "playing";
-  const statusLine = playing
+  const showBoard = game.status === "playing" || game.status === "finished";
+  const statusLine = showBoard
     ? definition.getStatusLine(game.state, game.players)
     : null;
 
-  // While a game is being played, a phone in landscape gets an immersive
-  // full-screen board (no header/footer/titles) — see .immersive rules in
-  // app.css. Portrait and larger screens are untouched.
+  const makeRecordFinished = () => {
+    const wIds =
+      definition.getWinnerIds?.(game.state, game.players) ?? [];
+    const wNames = wIds.length
+      ? game.players.filter((p) => wIds.includes(p.id)).map((p) => p.name)
+      : [];
+    recordRecentGame({
+      id: game.id,
+      code: game.code,
+      gameType: game.game_type,
+      title: game.title,
+      status: "finished",
+      playerCount: game.players.length,
+      visitedAt: Date.now(),
+      groupId: group?.id ?? null,
+      groupName: group?.name ?? null,
+      winners: wNames.length ? wNames : undefined,
+    });
+  };
+
   useEffect(() => {
-    if (!playing) return;
+    if (game.status !== "playing") return;
     const root = document.documentElement;
     root.classList.add("immersive");
     return () => root.classList.remove("immersive");
-  }, [playing]);
+  }, [game.status]);
 
   return (
     <main className="game-main mx-auto w-full max-w-3xl px-4 py-6 animate-fade-in-up">
@@ -115,10 +142,10 @@ export default function Game({ loaderData }: Route.ComponentProps) {
           >
             <path d="m15 18-6-6 6-6" />
           </svg>
-          {playing ? t.game.backToGames : t.lobby.backToGames}
+          {t.game.backToGames}
         </Link>
         <div className="flex items-center gap-2">
-          {playing && (
+          {game.status === "playing" && (
             <button
               type="button"
               onClick={() => updateGame(game.id, { status: "lobby" }).catch(() => {})}
@@ -145,14 +172,16 @@ export default function Game({ loaderData }: Route.ComponentProps) {
         </div>
       </div>
 
-      {playing ? (
+      {showBoard ? (
         <>
           <div className="game-chrome mb-6">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-accent">
                 {definition.name}
               </span>
-              <Badge variant="live">{t.lobby.live}</Badge>
+              <Badge variant={game.status === "playing" ? "live" : "neutral"}>
+                {game.status === "playing" ? t.lobby.live : t.home.finished}
+              </Badge>
             </div>
             <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">
               {game.title || definition.boardTitle}
@@ -167,9 +196,25 @@ export default function Game({ loaderData }: Route.ComponentProps) {
             game={game}
             state={game.state}
             players={game.players}
-            setStateAt={(path, value) => setStateAt(game.id, path, value)}
-            mergeStateAt={(path, value) => mergeStateAt(game.id, path, value)}
+            setStateAt={(path: string[], value: Json | null) =>
+              game.status === "finished"
+                ? Promise.resolve()
+                : setStateAt(game.id, path, value)
+            }
+            mergeStateAt={(path: string[], value: Record<string, Json | null>) =>
+              game.status === "finished"
+                ? Promise.resolve()
+                : mergeStateAt(game.id, path, value)
+            }
+            onGameOver={async () => {
+              await updateGame(game.id, { status: "finished" });
+              makeRecordFinished();
+            }}
             onNewGame={async () => {
+              if (game.status !== "finished") {
+                await updateGame(game.id, { status: "finished" });
+              }
+              makeRecordFinished();
               const settings =
                 (game.state as Record<string, unknown>).settings ?? {};
               const initialState = definition.createInitialState(

@@ -4,7 +4,7 @@ import type { Route } from "./+types/home";
 import { GameGrid } from "~/components/home/GameGrid";
 import { Hero } from "~/components/home/Hero";
 import { JoinByCode } from "~/components/home/JoinByCode";
-import { RecentGames } from "~/components/home/RecentGames";
+import { ActiveGames, FinishedGames } from "~/components/home/RecentGames";
 import { getGame } from "~/games/registry";
 import { t } from "~/i18n/de";
 import { createGame } from "~/lib/game-api";
@@ -46,9 +46,12 @@ export default function Home() {
     <main className="mx-auto w-full max-w-3xl px-4 pb-12">
       <Hero />
       <div className="space-y-8">
-        <RecentGames />
+        <ActiveGames />
         <GameGrid />
         <JoinByCode />
+      </div>
+      <div className="mt-8">
+        <FinishedGames />
       </div>
     </main>
   );

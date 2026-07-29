@@ -1,6 +1,3 @@
-import { useEffect, useRef, useState } from "react";
-
-import { cx } from "~/lib/cx";
 import { NumericKeypad } from "~/components/ui/NumericKeypad";
 
 interface MiniStepperProps {
@@ -10,12 +7,6 @@ interface MiniStepperProps {
   min: number;
   max: number;
   label: string;
-}
-
-function parseDraft(raw: string): number | null {
-  if (raw.trim() === "" || raw === "-") return null;
-  const n = Number(raw);
-  return Number.isNaN(n) ? null : n;
 }
 
 /** Compact stepper for per-player round entries. */
@@ -51,10 +42,7 @@ export function MiniStepper({ value, onChange, min, max, label }: MiniStepperPro
         max={max}
         label={label}
         placeholder="–"
-        className={cx(
-          "h-9 w-20 rounded-lg border border-border bg-field text-center font-display text-lg font-semibold placeholder:text-muted/60 focus:border-primary focus:outline-none",
-          "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-        )}
+        className="h-9 w-20 rounded-lg border border-border bg-field text-center font-display text-lg font-semibold placeholder:text-muted/60 focus:border-primary focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
       <button
         type="button"
