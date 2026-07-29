@@ -51,11 +51,10 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
   const [pending, setPending] = useState<Record<string, E>>({});
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  // Revert redo state
-  const [revertedRound, setRevertedRound] = useState<{
-    roundIndex: number;
-    data: Record<string, E>;
-  } | null>(null);
+  // Revert/redo stack — top of stack is the most recently undone round
+  const [undoStack, setUndoStack] = useState<
+    Array<{ roundIndex: number; data: Record<string, E> }>
+  >([]);
 
   useEffect(() => {
     setPending((prev) => {
@@ -73,9 +72,15 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
     });
   }, [state]);
 
+  const roundPrefill =
+    undoStack.length > 0 ? undoStack[0].data : null;
+
   const entryOf = (playerId: string, r: number): E | undefined => {
     const key = `${r}/${playerId}`;
-    return key in pending ? pending[key] : entryAt(state, r, playerId);
+    if (key in pending) return pending[key];
+    if (r === round && roundPrefill && playerId in (roundPrefill as Record<string, unknown>))
+      return (roundPrefill as Record<string, unknown>)[playerId] as E;
+    return entryAt(state, r, playerId);
   };
 
   const writeEntry = (playerId: string, entry: E) => {
@@ -103,31 +108,22 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
     return config.isEntryComplete(e);
   });
 
-  const currentHasEntries = players.some(
-    (p) => entryOf(p.id, round) !== undefined,
-  );
+  const finishRound = async () => {
+    const entries: Record<string, E> = {};
+    for (const player of players) {
+      const entry = entryOf(player.id, round);
+      entries[player.id] = entry !== undefined ? entry : (0 as unknown as E);
+    }
 
-  // Flush all pending entries immediately
-  const flushPending = async () => {
-    const keys = Object.keys(pending);
-    for (const key of keys) {
-      const [r, pid] = key.split("/");
-      const entry = pending[key];
+    // Clear all pending timers
+    for (const key of Object.keys(pending)) {
       clearTimeout(timers.current[key]);
-      try {
-        await mergeStateAt(["rounds", String(r)], { [pid]: entry });
-      } catch {
-        // Ignore errors, they'll be handled by the finishRound catch
-      }
     }
     setPending({});
-  };
-
-  const finishRound = async () => {
-    // First flush all pending entries
-    await flushPending();
+    setUndoStack([]);
 
     try {
+      await mergeStateAt(["rounds", String(round)], entries as Record<string, Json>);
       await setStateAt(["currentRound"], round + 1);
     } catch {
       alert(t.error.saveFailed);
@@ -136,36 +132,34 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
 
   const revertRound = async () => {
     try {
-      // Capture current round entries BEFORE reverting (for Issue 7)
-      const currentEntries: Record<string, E> = {};
-      for (const player of players) {
-        const entry = entryOf(player.id, round);
-        if (entry !== undefined) currentEntries[player.id] = entry;
-      }
+      // Check server state only (not pending/prefill)
+      const roundServerEntries =
+        state.rounds?.[round] as Record<string, E> | undefined;
+      const hasServerEntries =
+        roundServerEntries !== undefined &&
+        Object.keys(roundServerEntries).length > 0;
 
-      // Also capture previous round if we're reverting that one
-      let revertedRoundIndex = round;
-      let revertedData = currentEntries;
+      let removedIndex: number;
+      let data: Record<string, E>;
 
-      if (currentHasEntries) {
-        // Reverting current round (which has entries)
+      if (hasServerEntries) {
+        removedIndex = round;
+        data = { ...roundServerEntries };
         await setStateAt(["rounds", String(round)], null);
       } else if (round > 0) {
-        // Reverting previous round (current is empty)
-        revertedRoundIndex = round - 1;
-        for (const player of players) {
-          const entry = entryAt(state, round - 1, player.id);
-          if (entry !== undefined) revertedData[player.id] = entry;
-        }
+        const prevEntries = state.rounds?.[
+          round - 1
+        ] as Record<string, E> | undefined;
+        removedIndex = round - 1;
+        data = prevEntries ? { ...prevEntries } : {};
         await setStateAt(["rounds", String(round - 1)], null);
         await setStateAt(["currentRound"], round - 1);
+      } else {
+        return;
       }
 
-      // Store for redo toast
-      if (Object.keys(revertedData).length > 0) {
-        setRevertedRound({ roundIndex: revertedRoundIndex, data: revertedData });
-        // Auto-dismiss after 5 seconds
-        setTimeout(() => setRevertedRound(null), 5000);
+      if (Object.keys(data).length > 0) {
+        setUndoStack((prev) => [{ roundIndex: removedIndex, data }, ...prev]);
       }
     } catch {
       alert(t.error.saveFailed);
@@ -173,13 +167,17 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
   };
 
   const redoRevert = async () => {
-    if (!revertedRound) return;
+    if (undoStack.length === 0) return;
+    const [removed, ...rest] = undoStack;
     try {
       await mergeStateAt(
-        ["rounds", String(revertedRound.roundIndex)],
-        revertedRound.data,
+        ["rounds", String(removed.roundIndex)],
+        removed.data as Record<string, Json>,
       );
-      setRevertedRound(null);
+      if (removed.roundIndex >= round) {
+        await setStateAt(["currentRound"], removed.roundIndex + 1);
+      }
+      setUndoStack(rest);
     } catch {
       alert(t.error.saveFailed);
     }
@@ -321,21 +319,10 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
           totals={totals}
           playedRounds={playedRounds}
           onRevertRound={revertRound}
-          revertedRound={revertedRound}
+          undoStackLength={undoStack.length}
           onRedoRevert={redoRevert}
           mergeStateAt={mergeStateAt}
         />
-      )}
-
-      {revertedRound && (
-        <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 z-50 animate-sheet-in">
-          <div className="bg-surface border border-border/60 rounded-2xl p-4 shadow-xl flex items-center justify-between gap-3">
-            <span className="text-sm text-muted">{t.rounds.redoRevert}</span>
-            <Button variant="ghost" size="sm" onClick={redoRevert}>
-              {t.rounds.undoRevert}
-            </Button>
-          </div>
-        </div>
       )}
     </div>
   );
@@ -386,7 +373,7 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
   totals,
   playedRounds,
   onRevertRound,
-  revertedRound,
+  undoStackLength,
   onRedoRevert,
   mergeStateAt,
 }: {
@@ -396,7 +383,7 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
   totals: Record<string, number>;
   playedRounds: number;
   onRevertRound: () => void;
-  revertedRound: { roundIndex: number; data: Record<string, E> } | null;
+  undoStackLength: number;
   onRedoRevert: () => void;
   mergeStateAt: (path: string[], value: Record<string, Json | null>) => Promise<void>;
 }) {
@@ -512,6 +499,20 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
             </svg>
             {t.rounds.revertRound}
           </Button>
+          {undoStackLength > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted"
+              onClick={onRedoRevert}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M5 14 9 9 4 4" />
+                <path d="M9 9h10a6 6 0 0 1 0 12h-3" />
+              </svg>
+              {t.rounds.redoRound}
+            </Button>
+          )}
         </div>
       )}
     </div>

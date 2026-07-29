@@ -67,9 +67,16 @@ export function NumericKeypad({
 
   const commitDraft = () => {
     const d = draftRef.current;
-    if (d === "" || d === "-") return;
+    if (d === "" || d === "-") {
+      onChange(clamp(0));
+      setDraftBoth("0");
+      return;
+    }
     const n = Number(d);
-    if (!Number.isNaN(n)) onChange(clamp(n));
+    if (!Number.isNaN(n)) {
+      onChange(clamp(n));
+      setDraftBoth(String(clamp(n)));
+    }
   };
 
   const handleKey = (key: string) => {
