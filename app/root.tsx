@@ -18,14 +18,10 @@ import { t } from "~/i18n/de";
 import { THEME_SCRIPT } from "~/lib/theme";
 import { warmUpDatabase } from "~/lib/warmup";
 
-const FAVICON =
-  "data:image/svg+xml," +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#177e63"/><rect x="7" y="4.5" width="10" height="15" rx="2" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M9.5 8.5h5M9.5 12h5M9.5 15.5h3" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>`,
-  );
-
 export const links: Route.LinksFunction = () => [
-  { rel: "icon", href: FAVICON, type: "image/svg+xml" },
+  { rel: "icon", href: "/icons/tablecells.png", type: "image/png" },
+  { rel: "apple-touch-icon", href: "/icons/tablecells.png" },
+  { rel: "preconnect", href: "https://fonts.googleapis.com" },
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "preconnect",

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { cx } from "~/lib/cx";
+import { NumericKeypad } from "~/components/ui/NumericKeypad";
 
 interface MiniStepperProps {
   /** null = not yet entered (shows "–"); the first "+" commits an explicit 0. */
@@ -23,15 +24,6 @@ export function MiniStepper({ value, onChange, min, max, label }: MiniStepperPro
   const buttonClass =
     "flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-base transition-colors hover:bg-field disabled:opacity-40 disabled:pointer-events-none";
 
-  // Local draft so backspacing to an empty field is visible while typing —
-  // a controlled input bound straight to `value` snaps back on every
-  // keystroke that doesn't parse to a committed number.
-  const [draft, setDraft] = useState(value === null ? "" : String(value));
-  const focused = useRef(false);
-  useEffect(() => {
-    if (!focused.current) setDraft(value === null ? "" : String(value));
-  }, [value]);
-
   const atMax = value !== null && value >= max;
   const atMin = value === null || value <= min;
 
@@ -52,29 +44,15 @@ export function MiniStepper({ value, onChange, min, max, label }: MiniStepperPro
       >
         −
       </button>
-      <input
-        type="number"
-        inputMode="numeric"
-        value={draft}
-        placeholder="–"
+      <NumericKeypad
+        value={value}
+        onChange={onChange}
         min={min}
         max={max}
-        aria-label={label}
-        onFocus={() => {
-          focused.current = true;
-        }}
-        onBlur={() => {
-          focused.current = false;
-          setDraft(value === null ? "" : String(value));
-        }}
-        onChange={(e) => {
-          const raw = e.target.value;
-          setDraft(raw);
-          const n = parseDraft(raw);
-          if (n !== null) onChange(clamp(n));
-        }}
+        label={label}
+        placeholder="–"
         className={cx(
-          "h-9 w-14 rounded-lg border border-border bg-field text-center font-display text-lg font-semibold placeholder:text-muted/60 focus:border-primary focus:outline-none",
+          "h-9 w-20 rounded-lg border border-border bg-field text-center font-display text-lg font-semibold placeholder:text-muted/60 focus:border-primary focus:outline-none",
           "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
         )}
       />

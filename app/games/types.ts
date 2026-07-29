@@ -16,6 +16,8 @@ export interface GameBoardProps<TState> {
     path: string[],
     value: Record<string, Json | null>,
   ) => Promise<void>;
+  /** Start a new game with the same players and settings. */
+  onNewGame?: () => void;
 }
 
 export interface GameSettingsPanelProps<TSettings> {

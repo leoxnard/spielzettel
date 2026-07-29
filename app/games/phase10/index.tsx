@@ -37,6 +37,7 @@ export const phase10Definition = defineRoundsGame<Phase10Entry, BaseSettings>(
   {
     emptyEntry: { points: null, done: false },
     isEntryComplete: (e) => e.points !== null,
+    allowEmptyEntries: true,
     roundScore: (e) => phase10RoundScore(e),
     turnChip: "starter",
     playerMeta: (playerId, state) =>

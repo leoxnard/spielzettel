@@ -78,6 +78,8 @@ export interface RoundsConfig<
   playerMeta?: (playerId: string, state: RoundsState<E, S>) => string | null;
   /** Group-stats bucket label (e.g. Punkteblock → chosen preset). */
   groupLabel?: (state: RoundsState<E, S>) => string;
+  /** Allow submitting a round even if some players have no entry (they get 0). */
+  allowEmptyEntries?: boolean;
 }
 
 /** Everything needed to register a rounds-based game. */

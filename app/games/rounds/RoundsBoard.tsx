@@ -25,6 +25,7 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
   setStateAt,
   mergeStateAt,
   config,
+  onNewGame,
 }: Props<E, S>) {
   const round = state.currentRound;
   const maxRounds = config.maxRounds?.(players, state.settings) ?? null;
@@ -39,6 +40,12 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
   // state carries the same entry.
   const [pending, setPending] = useState<Record<string, E>>({});
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  // Revert redo state
+  const [revertedRound, setRevertedRound] = useState<{
+    roundIndex: number;
+    data: Record<string, E>;
+  } | null>(null);
 
   useEffect(() => {
     setPending((prev) => {
@@ -73,7 +80,6 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
             delete next[key];
             return next;
           });
-          alert(t.error.saveFailed);
         },
       );
     }, 450);
@@ -81,25 +87,89 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
 
   const allComplete = players.every((p) => {
     const e = entryOf(p.id, round);
-    return e !== undefined && config.isEntryComplete(e);
+    if (e === undefined) {
+      return config.allowEmptyEntries ?? false;
+    }
+    return config.isEntryComplete(e);
   });
 
   const currentHasEntries = players.some(
     (p) => entryOf(p.id, round) !== undefined,
   );
 
-  const finishRound = () => {
-    setStateAt(["currentRound"], round + 1).catch(() => alert(t.error.saveFailed));
+  // Flush all pending entries immediately
+  const flushPending = async () => {
+    const keys = Object.keys(pending);
+    for (const key of keys) {
+      const [r, pid] = key.split("/");
+      const entry = pending[key];
+      clearTimeout(timers.current[key]);
+      try {
+        await mergeStateAt(["rounds", String(r)], { [pid]: entry });
+      } catch {
+        // Ignore errors, they'll be handled by the finishRound catch
+      }
+    }
+    setPending({});
+  };
+
+  const finishRound = async () => {
+    // First flush all pending entries
+    await flushPending();
+
+    try {
+      await setStateAt(["currentRound"], round + 1);
+    } catch {
+      alert(t.error.saveFailed);
+    }
   };
 
   const revertRound = async () => {
     try {
+      // Capture current round entries BEFORE reverting (for Issue 7)
+      const currentEntries: Record<string, E> = {};
+      for (const player of players) {
+        const entry = entryOf(player.id, round);
+        if (entry !== undefined) currentEntries[player.id] = entry;
+      }
+
+      // Also capture previous round if we're reverting that one
+      let revertedRoundIndex = round;
+      let revertedData = currentEntries;
+
       if (currentHasEntries) {
+        // Reverting current round (which has entries)
         await setStateAt(["rounds", String(round)], null);
       } else if (round > 0) {
+        // Reverting previous round (current is empty)
+        revertedRoundIndex = round - 1;
+        for (const player of players) {
+          const entry = entryAt(state, round - 1, player.id);
+          if (entry !== undefined) revertedData[player.id] = entry;
+        }
         await setStateAt(["rounds", String(round - 1)], null);
         await setStateAt(["currentRound"], round - 1);
       }
+
+      // Store for redo toast
+      if (Object.keys(revertedData).length > 0) {
+        setRevertedRound({ roundIndex: revertedRoundIndex, data: revertedData });
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => setRevertedRound(null), 5000);
+      }
+    } catch {
+      alert(t.error.saveFailed);
+    }
+  };
+
+  const redoRevert = async () => {
+    if (!revertedRound) return;
+    try {
+      await mergeStateAt(
+        ["rounds", String(revertedRound.roundIndex)],
+        revertedRound.data,
+      );
+      setRevertedRound(null);
     } catch {
       alert(t.error.saveFailed);
     }
@@ -113,6 +183,7 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
     roundIndex: round,
     settings: state.settings,
   });
+  const playedRounds = state.currentRound;
 
   const tabButton = (id: "current" | "totals", label: string) => (
     <button
@@ -130,7 +201,7 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
 
   return (
     <div>
-      {verdict.over && <WinnerBanner verdict={verdict} players={players} />}
+      {verdict.over && <WinnerBanner verdict={verdict} players={players} onNewGame={onNewGame} />}
 
       <div className="mb-4 flex gap-1 rounded-xl bg-field p-1">
         {tabButton("current", t.rounds.currentTab)}
@@ -231,20 +302,6 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
               </div>
             </>
           )}
-          {(currentHasEntries || round > 0) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-3 w-full text-muted"
-              onClick={revertRound}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M9 14 4 9l5-5" />
-                <path d="M4 9h10a6 6 0 0 1 0 12h-3" />
-              </svg>
-              {t.rounds.revertRound}
-            </Button>
-          )}
         </div>
       ) : (
         <TotalsTable
@@ -252,7 +309,23 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
           config={config}
           players={players}
           totals={totals}
+          playedRounds={playedRounds}
+          onRevertRound={revertRound}
+          revertedRound={revertedRound}
+          onRedoRevert={redoRevert}
+          mergeStateAt={mergeStateAt}
         />
+      )}
+
+      {revertedRound && (
+        <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 z-50 animate-sheet-in">
+          <div className="bg-surface border border-border/60 rounded-2xl p-4 shadow-xl flex items-center justify-between gap-3">
+            <span className="text-sm text-muted">{t.rounds.redoRevert}</span>
+            <Button variant="ghost" size="sm" onClick={redoRevert}>
+              {t.rounds.undoRevert}
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -261,9 +334,11 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
 function WinnerBanner({
   verdict,
   players,
+  onNewGame,
 }: {
   verdict: { winnerIds: string[]; reason?: string };
   players: Player[];
+  onNewGame?: () => void;
 }) {
   const names = players
     .filter((p) => verdict.winnerIds.includes(p.id))
@@ -280,6 +355,16 @@ function WinnerBanner({
       {verdict.reason && (
         <p className="mt-1 text-sm text-muted">{verdict.reason}</p>
       )}
+      {onNewGame && (
+        <Button
+          variant="accent"
+          size="sm"
+          className="mt-4"
+          onClick={onNewGame}
+        >
+          {t.rounds.newGame}
+        </Button>
+      )}
     </div>
   );
 }
@@ -289,18 +374,46 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
   config,
   players,
   totals,
+  playedRounds,
+  onRevertRound,
+  revertedRound,
+  onRedoRevert,
+  mergeStateAt,
 }: {
   state: RoundsState<E, S>;
   config: RoundsConfig<E, S>;
   players: Player[];
   totals: Record<string, number>;
+  playedRounds: number;
+  onRevertRound: () => void;
+  revertedRound: { roundIndex: number; data: Record<string, E> } | null;
+  onRedoRevert: () => void;
+  mergeStateAt: (path: string[], value: Record<string, Json | null>) => Promise<void>;
 }) {
+  const [editMode, setEditMode] = useState(false);
   const labelCell =
     "sticky left-0 z-10 bg-surface px-4 py-2.5 text-left text-sm font-medium whitespace-nowrap";
-  const playedRounds = state.currentRound;
+
+  const handleEditEntry = (roundIndex: number, playerId: string, value: E) => {
+    mergeStateAt(["rounds", String(roundIndex)], { [playerId]: value as Json }).catch(
+      () => alert(t.error.saveFailed),
+    );
+  };
 
   return (
     <div className="overflow-x-auto rounded-3xl border border-border/60 bg-surface shadow-sm">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-border/60">
+        <span className="text-sm font-medium">{t.rounds.totalsTab}</span>
+        {playedRounds > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setEditMode((m) => !m)}
+          >
+            {editMode ? t.rounds.editDone : t.rounds.editMode}
+          </Button>
+        )}
+      </div>
       <table className="w-full min-w-[22rem] border-collapse text-center">
         <thead>
           <tr className="border-b border-border/60">
@@ -343,7 +456,18 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
                 const entry = entryAt(state, i, p.id);
                 return (
                   <td key={p.id} className="px-3 py-2.5 text-sm">
-                    {entry === undefined ? "–" : config.roundScore(entry, i)}
+                    {editMode ? (
+                      <div className="flex justify-center">
+                        <config.EntryEditor
+                          player={p}
+                          value={entry}
+                          onChange={(value) => handleEditEntry(i, p.id, value)}
+                          roundIndex={i}
+                        />
+                      </div>
+                    ) : (
+                      <>{entry === undefined ? "–" : config.roundScore(entry, i)}</>
+                    )}
                   </td>
                 );
               })}
@@ -364,6 +488,22 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
           </tr>
         </tbody>
       </table>
+      {playedRounds > 0 && (
+        <div className="mt-3 flex items-center justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted"
+            onClick={onRevertRound}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M9 14 4 9l5-5" />
+              <path d="M4 9h10a6 6 0 0 1 0 12h-3" />
+            </svg>
+            {t.rounds.revertRound}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

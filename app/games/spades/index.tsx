@@ -36,6 +36,7 @@ export const spadesDefinition = defineRoundsGame<BidTricksEntry, LimitSettings>(
   {
     emptyEntry: { bid: null, tricks: null },
     isEntryComplete: (e) => e.bid !== null && e.tricks !== null,
+    allowEmptyEntries: true,
     roundScore: (e) => spadesRoundScore(e),
     totalScore: (entries) => spadesTotal(entries),
     turnChip: "dealer",

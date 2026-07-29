@@ -8,11 +8,13 @@ import { ShareCode } from "~/components/game/ShareCode";
 import { getGame } from "~/games/registry";
 import { t } from "~/i18n/de";
 import {
+  createGame,
   fetchGameByCode,
   mergeStateAt,
   setStateAt,
   updateGame,
 } from "~/lib/game-api";
+import type { Json } from "~/lib/types";
 import { normalizeCode } from "~/lib/game-code";
 import { fetchGroupById } from "~/lib/group-api";
 import { recordRecentGame } from "~/lib/recent-games";
@@ -167,6 +169,23 @@ export default function Game({ loaderData }: Route.ComponentProps) {
             players={game.players}
             setStateAt={(path, value) => setStateAt(game.id, path, value)}
             mergeStateAt={(path, value) => mergeStateAt(game.id, path, value)}
+            onNewGame={async () => {
+              const settings =
+                (game.state as Record<string, unknown>).settings ?? {};
+              const initialState = definition.createInitialState(
+                game.players,
+                settings as Record<string, unknown>,
+              );
+              const newGame = await createGame(game.game_type, {
+                groupId: game.group_id ?? undefined,
+                players: game.players,
+              });
+              await updateGame(newGame.id, {
+                state: initialState as Record<string, Json>,
+                status: "playing",
+              });
+              window.location.href = `/game/${newGame.code}`;
+            }}
           />
         </>
       ) : (

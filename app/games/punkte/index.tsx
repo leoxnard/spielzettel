@@ -147,6 +147,7 @@ export const punkteDefinition = defineRoundsGame<number, PunkteSettings>(
   {
     emptyEntry: 0,
     isEntryComplete: () => true,
+    allowEmptyEntries: true,
     roundScore: (entry) => entry,
     // In group stats, bucket by the chosen preset ("Uno", "Hearts", …) rather
     // than the generic "Punkteblock"; custom/no preset falls back to "Andere".
