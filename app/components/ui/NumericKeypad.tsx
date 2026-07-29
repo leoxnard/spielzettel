@@ -129,15 +129,29 @@ export function NumericKeypad({
         ref={inputRef}
         type="text"
         inputMode="numeric"
-        pattern="-?[0-9]+"
-        value={value === null ? "" : String(value)}
+        value={draft}
         placeholder={placeholder}
         aria-label={label}
+        onFocus={() => {
+          focusedRef.current = true;
+        }}
+        onBlur={() => {
+          focusedRef.current = false;
+          commitDraft();
+        }}
         onChange={(e) => {
           const raw = e.target.value;
+          setDraftBoth(raw);
           if (raw === "" || raw === "-") return;
           const n = Number(raw);
           if (!Number.isNaN(n)) onChange(clamp(n));
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commitDraft();
+            inputRef.current?.blur();
+          }
         }}
         disabled={disabled}
         className={cx(
@@ -198,8 +212,10 @@ export function NumericKeypad({
                     <button
                       key={`${ri}-${key}`}
                       type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => handleKey(key)}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleKey(key);
+                      }}
                       disabled={disabled}
                       className={cx(
                         "h-14 rounded-xl bg-field text-xl font-semibold transition-colors active:scale-95 touch-manipulation",
