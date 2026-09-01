@@ -8,10 +8,10 @@ import {
   Scripts,
   ScrollRestoration,
 } from "react-router";
-import { Analytics } from "@vercel/analytics/react";
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import { Analytics } from "~/components/layout/Analytics";
 import { Footer } from "~/components/layout/Footer";
 import { Header } from "~/components/layout/Header";
 import { t } from "~/i18n/de";
