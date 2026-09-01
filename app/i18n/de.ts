@@ -398,7 +398,11 @@ export const de = {
     contactTitle: "Kontakt",
     email: "spielzettel@leonardsima.de",
     hostingTitle: "Hosting",
-    hosting: "Diese Website wird gehostet von Vercel Inc., 340 S Lemon Ave #4133, Walnut, CA 91789, USA.",
+    hosting:
+      "Diese Website wird nicht bei einem externen Hoster betrieben, sondern auf eigener Hardware des Anbieters. Die Auslieferung erfolgt über das Content-Delivery-Netzwerk der Cloudflare, Inc., 101 Townsend St, San Francisco, CA 94107, USA; dabei werden Verbindungsdaten wie die IP-Adresse verarbeitet.",
+    analyticsTitle: "Analyse",
+    analytics:
+      "Diese Website nutzt Umami, eine selbst gehostete Analyse-Software auf demselben Server. Erfasst werden Seitenaufrufe, verweisende Seite, ungefähres Herkunftsland sowie grober Geräte- und Browsertyp. Umami setzt keine Cookies, speichert IP-Adressen nur als Hashwert und kann Dich nicht über andere Websites hinweg verfolgen. Spiel- und Gruppen-Codes werden vor dem Senden aus der Adresse entfernt. Es werden keine Daten an Dritte weitergegeben.",
     backToHome: "Zur Startseite",
   },
 } as const;

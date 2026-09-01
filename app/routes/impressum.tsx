@@ -44,6 +44,11 @@ export default function Impressum() {
           <p className="mt-1 text-muted">{t.impressum.hosting}</p>
         </div>
 
+        <div>
+          <h2 className="text-lg font-semibold">{t.impressum.analyticsTitle}</h2>
+          <p className="mt-1 text-muted">{t.impressum.analytics}</p>
+        </div>
+
         <Link to="/" className="mt-2 text-sm font-medium text-primary hover:underline">
           {t.impressum.backToHome}
         </Link>
