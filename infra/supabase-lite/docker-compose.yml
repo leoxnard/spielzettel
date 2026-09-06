@@ -7,11 +7,20 @@
 #
 #   db        Postgres (supabase/postgres: ships the anon/authenticator
 #             roles and RLS plumbing the migrations expect)
+#   db-init   one-shot: sets the authenticator password and creates the
+#             schema + publication Realtime and the migrations need
 #   rest      PostgREST — serves /rest/v1, verifies the JWT, maps its
 #             `role` claim onto the Postgres role that RLS checks
 #   realtime  the websocket change feed behind use-realtime-game.ts
 #   caddy     routes both under one origin (supabase-js needs a single
 #             host serving /rest/v1 and /realtime/v1)
+#
+# EVERYTHING IS INLINE ON PURPOSE — no bind mounts, no files next to this
+# one. Coolify (and other platforms that run `docker compose` from a
+# helper container) materialize only the compose file on the host, so a
+# relative bind mount silently becomes an empty directory: Postgres skips
+# the init scripts without complaining and Caddy dies mounting a directory
+# onto a file. Keep this file standalone.
 #
 # Version pins track the official supabase/docker compose file. Bump them
 # together, not individually:
@@ -36,12 +45,6 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
       - db-config:/etc/postgresql-custom
-      # The image creates the roles but does NOT set their passwords, and
-      # does not create the schema Realtime connects into. Both are init
-      # scripts in the official stack; without them rest and realtime fail
-      # to connect at all.
-      - ./init/99-roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql
-      - ./init/99-realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql
     command:
       - postgres
       - -c
@@ -53,6 +56,50 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+      start_period: 30s
+
+  # Runs to completion before rest/realtime are allowed to start. Doing this
+  # here rather than in /docker-entrypoint-initdb.d also means it re-applies
+  # on an existing volume — those scripts only ever run on a fresh one.
+  db-init:
+    image: supabase/postgres:17.6.1.136
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      # supabase_admin, not postgres: in this image `postgres` is not a
+      # superuser, and `authenticator` is a reserved role only a superuser
+      # may alter. The official stack sidesteps this by running its
+      # roles.sql during initdb, as the bootstrap superuser.
+      PGUSER: supabase_admin
+      PGDATABASE: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        # The image creates `authenticator` but leaves its password unset, so
+        # PostgREST cannot log in until this runs. -v + :'pw' lets psql do the
+        # quoting, so odd characters in the password are safe — but psql only
+        # interpolates variables in input it reads, never in a -c string.
+        psql -v ON_ERROR_STOP=1 -v pw="$$PGPASSWORD" <<'SQL'
+        alter user authenticator with password :'pw';
+        -- Realtime connects with `SET search_path TO _realtime` but does not
+        -- create the schema itself.
+        create schema if not exists _realtime;
+        alter schema _realtime owner to supabase_admin;
+        SQL
+        # supabase/migrations/*.sql do `alter publication supabase_realtime
+        # add table ...`, which needs the publication to exist first.
+        # CREATE PUBLICATION has no IF NOT EXISTS, hence the check.
+        psql -tAc "select 1 from pg_publication where pubname='supabase_realtime'" \
+          | grep -q 1 \
+          || psql -v ON_ERROR_STOP=1 -c "create publication supabase_realtime"
+        echo "db-init: ok"
 
   rest:
     image: postgrest/postgrest:v14.12
@@ -60,6 +107,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     environment:
       PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/postgres
       PGRST_DB_SCHEMAS: public
@@ -80,6 +129,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     environment:
       PORT: "4000"
       DB_HOST: db
@@ -98,7 +149,7 @@ services:
       APP_NAME: realtime
       # Seeds a single tenant with external_id "realtime-dev". Realtime
       # picks the tenant from the first label of the Host header, which is
-      # why the Caddyfile rewrites Host on the way through.
+      # why the Caddy config below rewrites Host on the way through.
       SEED_SELF_HOST: "true"
       RUN_JANITOR: "true"
       DISABLE_HEALTHCHECK_LOGGING: "true"
@@ -109,8 +160,60 @@ services:
     depends_on:
       - rest
       - realtime
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    # Config is written at start-up instead of mounted; see the note at the
+    # top of this file.
+    entrypoint:
+      - sh
+      - -c
+      - |
+        cat > /etc/caddy/Caddyfile <<'CADDYFILE'
+        {
+        	auto_https off
+        	admin off
+        }
+
+        :8000 {
+        	# PostgREST. supabase-js sends the anon key as both `apikey` and
+        	# `Authorization: Bearer`; PostgREST reads the latter, verifies it
+        	# against JWT_SECRET and switches to the role in the `role` claim,
+        	# which is what the RLS policies in supabase/migrations grant to.
+        	handle_path /rest/v1/* {
+        		header {
+        			defer
+        			Access-Control-Allow-Origin "*"
+        			Access-Control-Allow-Methods "GET, POST, PATCH, PUT, DELETE, OPTIONS, HEAD"
+        			Access-Control-Allow-Headers "authorization, apikey, content-type, accept, accept-profile, content-profile, prefer, range, x-client-info"
+        			Access-Control-Expose-Headers "content-range, content-profile"
+        			Access-Control-Max-Age "86400"
+        		}
+
+        		@preflight method OPTIONS
+        		respond @preflight 204
+
+        		reverse_proxy rest:3000
+        	}
+
+        	# Realtime. supabase-js opens
+        	# wss://<host>/realtime/v1/websocket?apikey=… and Realtime serves
+        	# that under /socket, so the prefix is swapped here.
+        	#
+        	# The Host rewrite is load-bearing: Realtime derives the tenant id
+        	# from the first label of the Host header, and SEED_SELF_HOST seeds
+        	# exactly one tenant named "realtime-dev". Forwarding the public
+        	# hostname makes it look up a tenant named "supabase" and reject
+        	# every connection. Caddy preserves the incoming Host by default,
+        	# so this has to be set explicitly.
+        	handle_path /realtime/v1/* {
+        		rewrite * /socket{uri}
+        		reverse_proxy realtime:4000 {
+        			header_up Host realtime-dev.supabase-realtime
+        		}
+        	}
+
+        	respond "supabase-lite" 404
+        }
+        CADDYFILE
+        exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
     # Only this service faces the outside world. Point the Coolify domain
     # at port 8000; Traefik terminates TLS in front of it. db/rest/realtime
     # publish nothing and stay on the internal network.
