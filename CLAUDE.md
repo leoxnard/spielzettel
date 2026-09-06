@@ -57,9 +57,13 @@ VITE_SUPABASE_ANON_KEY=...
 everything fails without them. Vite **inlines** these at build time — they must
 be present when `npm run build` runs, not just at runtime.
 
-There is no local Supabase stack in this repo. SQL in `supabase/migrations/` is
-applied manually to the hosted project (SQL editor or Supabase CLI); files are
-numbered and append-only — **add a new `00NN_*.sql`, never edit an applied one**.
+The database is a **self-hosted** Supabase stack (Postgres + PostgREST +
+Realtime + Caddy), defined in `infra/supabase-lite/` and deployed as a Docker
+Compose resource in Coolify. SQL in `supabase/migrations/` is applied manually,
+in order, with `psql -v ON_ERROR_STOP=1 -f`; files are numbered and append-only
+— **add a new `00NN_*.sql`, never edit an applied one**, with one exception:
+a migration that cannot replay against an empty database is broken and must be
+made replayable (see the `drop function` in `0009`).
 
 ## Layout
 
@@ -82,6 +86,7 @@ app/
     ├── rounds/          # shared engine for round-based games
     └── <slug>/          # one folder per game
 supabase/migrations/     # append-only SQL (tables + RPCs)
+infra/supabase-lite/     # self-hosted Postgres/PostgREST/Realtime for Coolify
 .agents/skills/react-router/  # React Router reference docs — consult for routing work
 ```
 
@@ -135,7 +140,8 @@ overlay pending writes until realtime confirms.
   is creating a game: a react-router `action` on `/` that redirects to the lobby.
 - `warmUpDatabase()` (`app/lib/warmup.ts`) pings Supabase at app start because
   the home page otherwise makes no DB calls and the first real query would eat a
-  cold start.
+  cold start. Self-hosted Postgres doesn't auto-pause the way the hosted
+  project did, so this now only warms the connection, not a sleeping instance.
 
 ## Adding a game
 

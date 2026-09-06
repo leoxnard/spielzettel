@@ -14,7 +14,8 @@ Zehntausend, Skat, Schafkopf, Doppelkopf & Co. – optionale Rundensummen-Prüfu
 
 - [React Router 8](https://reactrouter.com/) (Framework-Modus, SSR) + React 19
 - [Tailwind CSS v4](https://tailwindcss.com/) — Tokens in [DESIGN.md](DESIGN.md)
-- [Supabase](https://supabase.com/) — Postgres + Realtime für Live-Sync
+- [Supabase](https://supabase.com/) — Postgres + Realtime für Live-Sync,
+  selbst gehostet ([infra/supabase-lite/](infra/supabase-lite/README.md))
 - Vitest für die Punktelogik
 
 ## Setup
@@ -25,9 +26,12 @@ cp .env.example .env   # Supabase-URL + Publishable Key eintragen
 npm run dev            # http://localhost:5173
 ```
 
-Das Datenbankschema liegt in
-[supabase/migrations/0001_games.sql](supabase/migrations/0001_games.sql) und
-muss einmalig auf das Supabase-Projekt angewendet werden (SQL-Editor oder CLI).
+Das Datenbankschema liegt in [supabase/migrations/](supabase/migrations/) und
+wird einmalig der Reihe nach auf die Datenbank angewendet (`psql -f`, pro
+Datei, mit `ON_ERROR_STOP=1`).
+
+Die Datenbank ist ein selbst gehosteter Supabase-Stack — Postgres, PostgREST
+und Realtime, siehe [infra/supabase-lite/](infra/supabase-lite/README.md).
 
 ## Scripts
 
