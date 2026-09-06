@@ -21,6 +21,13 @@ create unique index groups_name_secret_unique
 -- Enter a group by name (+ optional secret). Find-or-create by (name, secret)
 -- and return the row. No member is added — identity is the group itself, and
 -- the roster is filled in explicitly (group page / lobby picker).
+--
+-- 0007's version took (p_name, p_member_name) — same argument types, different
+-- second parameter name — and `create or replace` refuses to rename a
+-- parameter, so the old signature has to go first or a replay from scratch
+-- stops here.
+drop function if exists public.group_join(text, text);
+
 create or replace function public.group_join(p_name text, p_secret text default null)
 returns public.groups
 language plpgsql security invoker set search_path = ''
