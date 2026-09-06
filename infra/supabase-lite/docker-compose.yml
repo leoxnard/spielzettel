@@ -1,0 +1,122 @@
+# Minimal self-hosted Supabase: just enough for Spielzettel.
+#
+# Spielzettel has no accounts and no file storage, so this deliberately
+# skips GoTrue (auth), Storage, imgproxy, Studio, Supavisor, and the
+# Logflare/Vector analytics pipeline — the parts of the official
+# docker-compose that eat the most memory. What's left:
+#
+#   db        Postgres (supabase/postgres: ships the anon/authenticator
+#             roles and RLS plumbing the migrations expect)
+#   rest      PostgREST — serves /rest/v1, verifies the JWT, maps its
+#             `role` claim onto the Postgres role that RLS checks
+#   realtime  the websocket change feed behind use-realtime-game.ts
+#   caddy     routes both under one origin (supabase-js needs a single
+#             host serving /rest/v1 and /realtime/v1)
+#
+# Version pins track the official supabase/docker compose file. Bump them
+# together, not individually:
+# https://github.com/supabase/supabase/blob/master/docker/docker-compose.yml
+#
+# Setup: see README.md in this folder.
+
+services:
+  db:
+    image: supabase/postgres:17.6.1.136
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      POSTGRES_DB: postgres
+      PGDATABASE: postgres
+      POSTGRES_PORT: "5432"
+      PGPORT: "5432"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXP: "3600"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - db-config:/etc/postgresql-custom
+      # The image creates the roles but does NOT set their passwords, and
+      # does not create the schema Realtime connects into. Both are init
+      # scripts in the official stack; without them rest and realtime fail
+      # to connect at all.
+      - ./init/99-roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql
+      - ./init/99-realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+      - -c
+      - log_min_messages=fatal # keeps Realtime's polling queries out of the logs
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  rest:
+    image: postgrest/postgrest:v14.12
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/postgres
+      PGRST_DB_SCHEMAS: public
+      # Deliberately NOT setting PGRST_DB_ANON_ROLE. The official stack sets
+      # it to `anon` and relies on Kong's key-auth to turn away requests with
+      # no apikey; there's no Kong here, and with the fallback in place a
+      # keyless curl would be served as `anon` — which the RLS policies grant
+      # everything to. Unset, PostgREST answers 401 unless a valid JWT is
+      # present, and the role still comes from that JWT's `role` claim.
+      PGRST_DB_EXTRA_SEARCH_PATH: public
+      PGRST_DB_MAX_ROWS: "1000"
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+
+  realtime:
+    image: supabase/realtime:v2.102.3
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: "4000"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: postgres
+      DB_AFTER_CONNECT_QUERY: "SET search_path TO _realtime"
+      DB_ENC_KEY: ${DB_ENC_KEY}
+      API_JWT_SECRET: ${JWT_SECRET}
+      METRICS_JWT_SECRET: ${JWT_SECRET}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      ERL_AFLAGS: "-proto_dist inet_tcp"
+      DNS_NODES: "''"
+      RLIMIT_NOFILE: "10000"
+      APP_NAME: realtime
+      # Seeds a single tenant with external_id "realtime-dev". Realtime
+      # picks the tenant from the first label of the Host header, which is
+      # why the Caddyfile rewrites Host on the way through.
+      SEED_SELF_HOST: "true"
+      RUN_JANITOR: "true"
+      DISABLE_HEALTHCHECK_LOGGING: "true"
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      - rest
+      - realtime
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    # Only this service faces the outside world. Point the Coolify domain
+    # at port 8000; Traefik terminates TLS in front of it. db/rest/realtime
+    # publish nothing and stay on the internal network.
+    expose:
+      - "8000"
+
+volumes:
+  db-data:
+  db-config:

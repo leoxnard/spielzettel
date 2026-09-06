@@ -1,0 +1,46 @@
+# Routes the two Supabase services supabase-js talks to under one origin.
+# Plain HTTP on :8000 — Coolify's Traefik terminates TLS in front of this.
+{
+	auto_https off
+	admin off
+}
+
+:8000 {
+	# PostgREST. supabase-js sends the anon key as both `apikey` and
+	# `Authorization: Bearer`; PostgREST reads the latter, verifies it
+	# against JWT_SECRET and switches to the role in the `role` claim,
+	# which is what the RLS policies in supabase/migrations grant to.
+	handle_path /rest/v1/* {
+		header {
+			defer
+			Access-Control-Allow-Origin "*"
+			Access-Control-Allow-Methods "GET, POST, PATCH, PUT, DELETE, OPTIONS, HEAD"
+			Access-Control-Allow-Headers "authorization, apikey, content-type, accept, accept-profile, content-profile, prefer, range, x-client-info"
+			Access-Control-Expose-Headers "content-range, content-profile"
+			Access-Control-Max-Age "86400"
+		}
+
+		@preflight method OPTIONS
+		respond @preflight 204
+
+		reverse_proxy rest:3000
+	}
+
+	# Realtime. supabase-js opens wss://<host>/realtime/v1/websocket?apikey=…
+	# and Realtime serves that under /socket, so the prefix is swapped here.
+	#
+	# The Host rewrite is load-bearing: Realtime derives the tenant id from
+	# the first label of the Host header, and SEED_SELF_HOST seeds exactly
+	# one tenant named "realtime-dev". Forwarding the public hostname
+	# instead makes it look up a tenant named "supabase" and reject every
+	# connection. Caddy preserves the incoming Host by default, so this has
+	# to be set explicitly.
+	handle_path /realtime/v1/* {
+		rewrite * /socket{uri}
+		reverse_proxy realtime:4000 {
+			header_up Host realtime-dev.supabase-realtime
+		}
+	}
+
+	respond "supabase-lite" 404
+}
