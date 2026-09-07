@@ -99,6 +99,21 @@ services:
         psql -tAc "select 1 from pg_publication where pubname='supabase_realtime'" \
           | grep -q 1 \
           || psql -v ON_ERROR_STOP=1 -c "create publication supabase_realtime"
+        # The `realtime` schema (subscription table, list_changes, apply_rls)
+        # is created by the supabase/postgres image on FIRST init -- not by
+        # Realtime, and not by anything here. If a volume was initialized
+        # while something disrupted those init scripts, the schema is missing
+        # forever after: Postgres only initializes an empty data directory.
+        # Realtime then connects, subscribes happily, and fails on every WAL
+        # poll with "schema realtime does not exist" -- live updates silently
+        # never arrive. Fail loudly instead; rest/realtime gate on this.
+        psql -tAc "select 1 from pg_namespace where nspname='realtime'" | grep -q 1 || {
+          echo "db-init: FATAL - schema \"realtime\" is missing."
+          echo "  This volume was initialized incompletely. Postgres will not"
+          echo "  re-run its init on a non-empty data directory, so this cannot"
+          echo "  be repaired in place. Delete the db-data volume and redeploy."
+          exit 1
+        }
         echo "db-init: ok"
 
   rest:

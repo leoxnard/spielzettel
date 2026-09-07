@@ -100,6 +100,15 @@ just a restart.
   `authenticator` is a reserved role only a superuser may alter. Because it
   runs on every deploy rather than only on a fresh volume, it also repairs
   an existing database, unlike `/docker-entrypoint-initdb.d` scripts.
+- **A half-initialized volume cannot be repaired in place.** The
+  `supabase/postgres` image creates the `realtime` schema (the `subscription`
+  table, `list_changes`, `apply_rls`) during its *first* init, and Postgres
+  never re-runs init on a non-empty data directory. If that init was
+  disrupted, Realtime still connects and reports `SUBSCRIBED`, then fails
+  every WAL poll with `schema "realtime" does not exist` — live updates
+  silently never arrive while everything else looks healthy. `db-init` now
+  checks for it and refuses to let `rest`/`realtime` start. The only fix is
+  to delete the `db-data` volume, redeploy, and re-run the migrations.
 - **The `Host` rewrite in the Caddy config is load-bearing.** Realtime takes
   its tenant id from the first label of the Host header and `SEED_SELF_HOST`
   seeds exactly one tenant, `realtime-dev`. Forwarding the public hostname
