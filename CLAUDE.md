@@ -19,7 +19,7 @@ The product surface is **German-only**. All user-visible copy lives in
   CSS variables in `app/app.css` exposed through `@theme inline`
 - **Supabase** (Postgres + Realtime) — client in `app/lib/supabase.ts`
 - **Vitest** for pure scoring logic (`app/**/*.test.ts`)
-- **Vercel Analytics**; Docker deploy (`Dockerfile`, port 3000)
+- **Umami** analytics (self-hosted); Docker deploy via Coolify (`Dockerfile`, port 3000)
 
 TypeScript is `strict` with `verbatimModuleSyntax`. Path alias: `~/*` → `app/*`
 (configured in both `tsconfig.json` and `vitest.config.ts`).
