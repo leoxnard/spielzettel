@@ -178,6 +178,7 @@ export function DartsBoard({
                 <Button
                   onClick={() => commit({ playerId: current.id, darts: [], total: total ?? 0 })}
                   disabled={total === null}
+                  data-keypad-submit={t.darts.enterTotal}
                 >
                   {t.darts.enterTotal}
                 </Button>

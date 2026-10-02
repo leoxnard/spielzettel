@@ -22,6 +22,40 @@ const KEYS = [
   ["±", "0", "⌫"],
 ] as const;
 
+/**
+ * Where "Weiter" leads from this field: the next keypad field in document
+ * order, else the form's submit button (marked `data-keypad-submit="<label>"`).
+ */
+type NextTarget =
+  | { kind: "field"; el: HTMLInputElement }
+  | { kind: "submit"; el: HTMLButtonElement; label: string };
+
+function findNextTarget(input: HTMLInputElement | null): NextTarget | null {
+  if (!input) return null;
+  const fields = Array.from(
+    document.querySelectorAll<HTMLInputElement>("input[data-keypad]:not(:disabled)"),
+  );
+  const i = fields.indexOf(input);
+  const next = i >= 0 ? fields[i + 1] : undefined;
+  if (next) return { kind: "field", el: next };
+  const submit = document.querySelector<HTMLButtonElement>("button[data-keypad-submit]");
+  return submit
+    ? { kind: "submit", el: submit, label: submit.dataset.keypadSubmit ?? "" }
+    : null;
+}
+
+/** After the committed value has rendered, move on or submit. */
+function goTo(target: NextTarget | null) {
+  if (!target) return;
+  if (target.kind === "field") {
+    target.el.focus();
+    return;
+  }
+  requestAnimationFrame(() => {
+    if (!target.el.disabled) target.el.click();
+  });
+}
+
 function isTouchDevice() {
   return (
     typeof window !== "undefined" &&
@@ -46,7 +80,10 @@ export function NumericKeypad({
   const inputRef = useRef<HTMLInputElement>(null);
   const keypadRef = useRef<HTMLDivElement>(null);
   const focusedRef = useRef(false);
-  const touch = isTouchDevice();
+  // Decided after hydration: the server can't know, and guessing differently
+  // than the client throws away the server-rendered page.
+  const [touch, setTouch] = useState(false);
+  useEffect(() => setTouch(isTouchDevice()), []);
 
   useEffect(() => {
     if (!focusedRef.current) {
@@ -124,16 +161,10 @@ export function NumericKeypad({
     }
   };
 
-  // Next keypad field in document order — lets you enter a whole round
-  // without closing the keypad in between.
-  const [nextField, setNextField] = useState<HTMLInputElement | null>(null);
+  const [nextTarget, setNextTarget] = useState<NextTarget | null>(null);
   useEffect(() => {
     if (!isOpen) return;
-    const fields = Array.from(
-      document.querySelectorAll<HTMLInputElement>("input[data-keypad]:not(:disabled)"),
-    );
-    const i = fields.indexOf(inputRef.current!);
-    setNextField(i >= 0 ? fields[i + 1] ?? null : null);
+    setNextTarget(findNextTarget(inputRef.current));
 
     // Keep the field visible above the sheet.
     const sheet = keypadRef.current?.offsetHeight ?? 0;
@@ -149,8 +180,10 @@ export function NumericKeypad({
   }, [isOpen]);
 
   const goNext = () => {
-    commitDraft();
-    nextField?.focus();
+    const target = findNextTarget(inputRef.current);
+    if (target?.kind === "submit") closeKeypad();
+    else commitDraft();
+    goTo(target);
   };
 
   const closeKeypad = () => {
@@ -165,6 +198,8 @@ export function NumericKeypad({
         ref={inputRef}
         type="text"
         inputMode="numeric"
+        enterKeyHint="next"
+        data-keypad=""
         value={draft}
         placeholder={placeholder}
         aria-label={label}
@@ -185,8 +220,10 @@ export function NumericKeypad({
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
+            const target = findNextTarget(inputRef.current);
             commitDraft();
-            inputRef.current?.blur();
+            if (target) goTo(target);
+            else inputRef.current?.blur();
           }
         }}
         disabled={disabled}
@@ -277,11 +314,15 @@ export function NumericKeypad({
               <button
                 type="button"
                 onPointerDown={(e) => e.preventDefault()}
-                onClick={nextField ? goNext : closeKeypad}
+                onClick={nextTarget ? goNext : closeKeypad}
                 className="mb-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-base font-semibold text-primary-ink transition-opacity active:opacity-80"
               >
-                {nextField ? t.rounds.keypadNext : t.rounds.keypadDone}
-                {nextField && <span aria-hidden>→</span>}
+                {nextTarget?.kind === "submit"
+                  ? nextTarget.label || t.rounds.keypadDone
+                  : nextTarget
+                    ? t.rounds.keypadNext
+                    : t.rounds.keypadDone}
+                {nextTarget && <span aria-hidden>{nextTarget.kind === "submit" ? "✓" : "→"}</span>}
               </button>
             </div>
           </div>,

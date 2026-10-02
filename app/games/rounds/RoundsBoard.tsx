@@ -328,6 +328,7 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
                   className="w-full"
                   onClick={finishRound}
                   disabled={!allComplete}
+                  data-keypad-submit={t.rounds.finishRound}
                 >
                   {t.rounds.finishRound}
                 </Button>
