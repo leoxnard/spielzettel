@@ -54,6 +54,18 @@ const PRESETS: {
   { id: "doppelkopf", limit: null, limitMode: "win", roundTotal: 0 },
 ];
 
+/** Lobby settings for a preset — used to start a pre-configured block. */
+export function presetSettings(id: string): PunkteSettings | null {
+  const preset = PRESETS.find((p) => p.id === id);
+  if (!preset) return null;
+  return {
+    presetId: preset.id,
+    limit: preset.limit,
+    limitMode: preset.limitMode,
+    roundTotal: preset.roundTotal ?? null,
+  };
+}
+
 /**
  * The universal score pad: raw points per round, running total, optional
  * limit. Covers Rommé, Uno, Skyjo, Hearts, Canasta, 6 nimmt!, Flip 7 & co.

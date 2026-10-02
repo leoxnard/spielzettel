@@ -6,8 +6,8 @@ import { Collapsible } from "~/components/ui/Collapsible";
 import { Input } from "~/components/ui/Input";
 import { Switch } from "~/components/ui/Switch";
 import { t } from "~/i18n/de";
-import { mergePlayer, mergeStateAt, updateGame } from "~/lib/game-api";
 import type { GameRow, GroupRow, Json, Player } from "~/lib/types";
+import type { GameActions } from "~/lib/use-realtime-game";
 import type { BaseSettings, GameDefinition } from "~/games/types";
 import { GroupPlayerPicker } from "./GroupPlayerPicker";
 import { PlayerList, newPlayer } from "./PlayerList";
@@ -15,11 +15,12 @@ import { StartPlayerPicker } from "./StartPlayerPicker";
 
 interface LobbyProps {
   game: GameRow;
+  actions: GameActions;
   definition: GameDefinition;
   group?: GroupRow | null;
 }
 
-export function Lobby({ game, definition, group }: LobbyProps) {
+export function Lobby({ game, actions, definition, group }: LobbyProps) {
   const [starting, setStarting] = useState(false);
 
   // Seed the minimum player count once for a freshly created game — but not
@@ -33,7 +34,7 @@ export function Lobby({ game, definition, group }: LobbyProps) {
     while (players.length < Math.max(definition.minPlayers, 2)) {
       players.push(newPlayer(players.length));
     }
-    updateGame(game.id, { players }).catch(() => {});
+    actions.update({ players }).catch(() => {});
   }, [group, game.id, game.players.length, definition.minPlayers]);
 
   // Title: local draft, saved debounced so we don't write on every key.
@@ -47,60 +48,25 @@ export function Lobby({ game, definition, group }: LobbyProps) {
     setTitle(value);
     clearTimeout(saveTitle.current);
     saveTitle.current = setTimeout(() => {
-      updateGame(game.id, { title: value.trim() || null }).catch(() => {});
+      actions.update({ title: value.trim() || null }).catch(() => {});
     }, 500);
   };
 
   const setPlayers = (players: Player[]) => {
-    updateGame(game.id, { players }).catch(() => {});
+    actions.update({ players }).catch(() => {});
   };
 
   // Lobby-edited settings live in state.settings even before the game
-  // starts; merged over the game's defaults. An optimistic overlay makes
-  // toggles/inputs feel instant instead of waiting for the realtime echo:
-  // a patched key is shown immediately and dropped once the server confirms
-  // the same value (so another device's change still comes through live).
-  const [settingsOverlay, setSettingsOverlay] = useState<
-    Record<string, unknown>
-  >({});
+  // starts, merged over the game's defaults. Writes show instantly via the
+  // sync layer's optimistic overlay.
   const serverSettings =
     (game.state.settings as Record<string, unknown> | undefined) ?? {};
-  useEffect(() => {
-    setSettingsOverlay((prev) => {
-      let changed = false;
-      const next = { ...prev };
-      for (const key of Object.keys(next)) {
-        if (JSON.stringify(serverSettings[key]) === JSON.stringify(next[key])) {
-          delete next[key];
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game.state.settings]);
-
   const settings: BaseSettings & Record<string, unknown> = {
     ...definition.defaultSettings,
     ...serverSettings,
-    ...settingsOverlay,
   };
   const patchSettings = (patch: Record<string, unknown>) => {
-    setSettingsOverlay((prev) => ({ ...prev, ...patch }));
-    mergeStateAt(game.id, ["settings"], patch as Record<string, Json>).catch(
-      () => {
-        // Save failed — drop the optimistic keys so the UI reflects reality.
-        setSettingsOverlay((prev) => {
-          const next = { ...prev };
-          for (const key of Object.keys(patch)) {
-            if (JSON.stringify(next[key]) === JSON.stringify(patch[key])) {
-              delete next[key];
-            }
-          }
-          return next;
-        });
-      },
-    );
+    actions.mergeStateAt(["settings"], patch as Record<string, Json>).catch(() => {});
   };
 
   const start = async () => {
@@ -115,7 +81,7 @@ export function Lobby({ game, definition, group }: LobbyProps) {
       const state = definition.hasStarted(game.state)
         ? definition.mergeStateForPlayers(game.state, players)
         : definition.createInitialState(players, settings);
-      await updateGame(game.id, { players, state, status: "playing" });
+      await actions.update({ players, state, status: "playing" });
     } catch {
       alert(t.error.saveFailed);
       setStarting(false);
@@ -156,7 +122,7 @@ export function Lobby({ game, definition, group }: LobbyProps) {
               maxPlayers={definition.maxPlayers}
               onChange={setPlayers}
               onPatchPlayer={(id, patch) =>
-                mergePlayer(game.id, id, patch).catch(() => {})
+                actions.mergePlayer(id, patch).catch(() => {})
               }
             />
           )}

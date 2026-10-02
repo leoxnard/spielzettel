@@ -72,13 +72,15 @@ app/
 ├── routes.ts            # route table (config-based, not file-based)
 ├── root.tsx             # html shell, theme script, analytics
 ├── app.css              # design tokens + animations + immersive-mode CSS
-├── routes/              # home, game/:code, group/:code, impressum, robots, sitemap
+├── routes/              # home, game/:code, group/:code, katalog(/:slug), impressum, robots, sitemap
+├── catalog/             # card game catalog: data, filters, favorites, ratings
 ├── i18n/de.ts           # ALL user-visible strings, namespaced
 ├── lib/                 # supabase client, APIs, realtime hooks, localStorage, seo
 ├── components/
 │   ├── ui/              # generic (Button, Card, Modal, Stepper, NumericKeypad…)
 │   ├── layout/          # Header, Footer, Logo, ThemeToggle, GroupMenu
 │   ├── home/            # Hero, GameGrid, JoinByCode, RecentGames
+│   ├── catalog/         # catalog cards, filters, stars, rating panel
 │   └── game/            # game-agnostic: Lobby, PlayerList, ShareCode, pickers
 └── games/
     ├── types.ts         # the GameDefinition contract
@@ -104,6 +106,9 @@ in `lib/` or the game folder, UI in `components/`.
 - `state` — jsonb, game-specific
 - `group_id` — optional link to `public.groups`
 
+`public.catalog_ratings` — closed table (RLS, no policies) behind the RPCs
+`catalog_rating_stats()` / `rate_catalog_game(slug, device, stars)`.
+
 `public.groups` — name + optional secret (md5 hash stored, never the word),
 `members` jsonb roster, own share `code`. Identity is `(lower(name),
 secret_hash)`: same name + different secret = a *different* group. Group
@@ -125,8 +130,12 @@ Wrappers live in `app/lib/game-api.ts`. Boards **never** call Supabase directly
 Whole-array/whole-row writes (`updateGame`) are reserved for low-contention
 lobby actions: adding/removing/reordering players, status changes, title.
 
-Same cell + same player stays last-write-wins on purpose. Boards optimistically
-overlay pending writes until realtime confirms.
+Same cell + same player stays last-write-wins on purpose. Optimism is
+**central**: `useRealtimeGame` returns `{ game, actions, status }`; every write
+goes through `actions` (queued, applied locally via `app/lib/optimistic.ts`,
+confirmed by the row the RPC returns, retried on network errors). Boards must
+**not** keep their own pending overlays — only debounce drafts. Lobby code uses
+the same `actions` (passed as a prop), never `game-api` writers directly.
 
 ### Realtime + SSR
 
@@ -159,7 +168,8 @@ Decide which of three tiers applies — pick the cheapest one that fits:
    the shared `RoundsBoard`. Examples: `wizard/`, `spades/`, `phase10/`.
 3. **Own mechanic**: implement `GameDefinition` (`app/games/types.ts`) directly —
    like `kniffel/` (cell grid) or `stadtlandfluss/` (write → score → done
-   phases, per-device identity in localStorage).
+   phases, per-device identity in localStorage) or `darts/` (one turn per
+   `setStateAt` write, everything else derived in `logic.ts`).
 
 Always, regardless of tier:
 

@@ -1,19 +1,14 @@
-import { useEffect } from "react";
-import { data, isRouteErrorResponse, Link } from "react-router";
+import { useEffect, useRef } from "react";
+import { data, isRouteErrorResponse, Link, useNavigate } from "react-router";
 
 import type { Route } from "./+types/game";
 import { Badge } from "~/components/ui/Badge";
 import { Lobby } from "~/components/game/Lobby";
 import { ShareCode } from "~/components/game/ShareCode";
+import { SyncIndicator } from "~/components/game/SyncIndicator";
 import { getGame } from "~/games/registry";
 import { t } from "~/i18n/de";
-import {
-  createGame,
-  fetchGameByCode,
-  mergeStateAt,
-  setStateAt,
-  updateGame,
-} from "~/lib/game-api";
+import { createGame, fetchGameByCode, updateGame } from "~/lib/game-api";
 import type { Json } from "~/lib/types";
 import { normalizeCode } from "~/lib/game-code";
 import { fetchGroupById } from "~/lib/group-api";
@@ -52,7 +47,11 @@ export function meta({ loaderData, params }: Route.MetaArgs) {
 }
 
 export default function Game({ loaderData }: Route.ComponentProps) {
-  const game = useRealtimeGame(loaderData.game);
+  const { game, actions, status: syncStatus } = useRealtimeGame(loaderData.game);
+  const navigate = useNavigate();
+  // Read by the writers below so a reopen takes effect before the next render.
+  const statusRef = useRef(game.status);
+  statusRef.current = game.status;
   const group = loaderData.group;
   const definition = getGame(game.game_type)!;
 
@@ -148,7 +147,7 @@ export default function Game({ loaderData }: Route.ComponentProps) {
           {game.status === "playing" && (
             <button
               type="button"
-              onClick={() => updateGame(game.id, { status: "lobby" }).catch(() => {})}
+              onClick={() => actions.update({ status: "lobby" }).catch(() => {})}
               className="inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-surface px-4 text-sm shadow-sm transition-colors hover:bg-field"
             >
               <svg
@@ -168,6 +167,7 @@ export default function Game({ loaderData }: Route.ComponentProps) {
               {t.game.backToLobby}
             </button>
           )}
+          <SyncIndicator status={syncStatus} />
           <ShareCode code={game.code} />
         </div>
       </div>
@@ -197,22 +197,26 @@ export default function Game({ loaderData }: Route.ComponentProps) {
             state={game.state}
             players={game.players}
             setStateAt={(path: string[], value: Json | null) =>
-              game.status === "finished"
+              statusRef.current === "finished"
                 ? Promise.resolve()
-                : setStateAt(game.id, path, value)
+                : actions.setStateAt(path, value)
             }
             mergeStateAt={(path: string[], value: Record<string, Json | null>) =>
-              game.status === "finished"
+              statusRef.current === "finished"
                 ? Promise.resolve()
-                : mergeStateAt(game.id, path, value)
+                : actions.mergeStateAt(path, value)
             }
+            onReopen={() => {
+              statusRef.current = "playing";
+              return actions.update({ status: "playing" });
+            }}
             onGameOver={async () => {
-              await updateGame(game.id, { status: "finished" });
+              await actions.update({ status: "finished" });
               makeRecordFinished();
             }}
             onNewGame={async () => {
               if (game.status !== "finished") {
-                await updateGame(game.id, { status: "finished" });
+                await actions.update({ status: "finished" });
               }
               makeRecordFinished();
               const settings =
@@ -229,7 +233,7 @@ export default function Game({ loaderData }: Route.ComponentProps) {
                 state: initialState as Record<string, Json>,
                 status: "playing",
               });
-              window.location.href = `/game/${newGame.code}`;
+              navigate(`/game/${newGame.code}`);
             }}
           />
         </>
@@ -251,7 +255,12 @@ export default function Game({ loaderData }: Route.ComponentProps) {
               <p className="text-sm text-muted">{definition.lobbySubtitle}</p>
             </div>
           </div>
-          <Lobby game={game} definition={definition} group={group} />
+          <Lobby
+            game={game}
+            actions={actions}
+            definition={definition}
+            group={group}
+          />
         </>
       )}
     </main>

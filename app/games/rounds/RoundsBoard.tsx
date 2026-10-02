@@ -49,9 +49,9 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
     }
   }, [verdict.over, onGameOver]);
 
-  // Optimistic overlay keyed "round/playerId", cleared once the server
-  // state carries the same entry.
-  const [pending, setPending] = useState<Record<string, E>>({});
+  // Local drafts keyed "round/playerId", only while the debounce runs; once
+  // sent, the sync layer's optimistic overlay takes over in the same render.
+  const [drafts, setDrafts] = useState<Record<string, E>>({});
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Revert/redo stack — top of stack is the most recently undone round
@@ -59,28 +59,12 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
     Array<{ roundIndex: number; data: Record<string, E> }>
   >([]);
 
-  useEffect(() => {
-    setPending((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      for (const key of Object.keys(next)) {
-        const [r, pid] = key.split("/");
-        const server = entryAt(state, Number(r), pid);
-        if (JSON.stringify(server) === JSON.stringify(next[key])) {
-          delete next[key];
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [state]);
-
   const roundPrefill =
     undoStack.length > 0 ? undoStack[0].data : null;
 
   const entryOf = (playerId: string, r: number): E | undefined => {
     const key = `${r}/${playerId}`;
-    if (key in pending) return pending[key];
+    if (key in drafts) return drafts[key];
     if (r === round && roundPrefill && playerId in (roundPrefill as Record<string, unknown>))
       return (roundPrefill as Record<string, unknown>)[playerId] as E;
     return entryAt(state, r, playerId);
@@ -88,20 +72,35 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
 
   const writeEntry = (playerId: string, entry: E) => {
     const key = `${round}/${playerId}`;
-    setPending((prev) => ({ ...prev, [key]: entry }));
+    setDrafts((prev) => ({ ...prev, [key]: entry }));
     clearTimeout(timers.current[key]);
     timers.current[key] = setTimeout(() => {
+      delete timers.current[key];
       mergeStateAt(["rounds", String(round)], { [playerId]: entry }).catch(
-        () => {
-          setPending((prev) => {
-            const next = { ...prev };
-            delete next[key];
-            return next;
-          });
-        },
+        () => {},
       );
-    }, 450);
+      setDrafts((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }, 350);
   };
+
+  // Flush pending drafts when leaving the board (back to lobby, navigation).
+  const flushRef = useRef(() => {});
+  flushRef.current = () => {
+    for (const key of Object.keys(timers.current)) {
+      clearTimeout(timers.current[key]);
+      const [r, playerId] = key.split("/");
+      const entry = drafts[key];
+      if (entry !== undefined) {
+        mergeStateAt(["rounds", r], { [playerId]: entry }).catch(() => {});
+      }
+    }
+    timers.current = {};
+  };
+  useEffect(() => () => flushRef.current(), []);
 
   const allComplete = players.every((p) => {
     const e = entryOf(p.id, round);
@@ -118,16 +117,20 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
       entries[player.id] = entry !== undefined ? entry : (0 as unknown as E);
     }
 
-    // Clear all pending timers
-    for (const key of Object.keys(pending)) {
+    // The round write below carries every draft — drop the debounced ones.
+    for (const key of Object.keys(timers.current)) {
       clearTimeout(timers.current[key]);
     }
-    setPending({});
+    timers.current = {};
+    setDrafts({});
     setUndoStack([]);
 
     try {
-      await mergeStateAt(["rounds", String(round)], entries as Record<string, Json>);
-      await setStateAt(["currentRound"], round + 1);
+      // Both writes are queued in order and shown at once.
+      await Promise.all([
+        mergeStateAt(["rounds", String(round)], entries as Record<string, Json>),
+        setStateAt(["currentRound"], round + 1),
+      ]);
     } catch {
       alert(t.error.saveFailed);
     }
@@ -155,8 +158,10 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
         ] as Record<string, E> | undefined;
         removedIndex = round - 1;
         data = prevEntries ? { ...prevEntries } : {};
-        await setStateAt(["rounds", String(round - 1)], null);
-        await setStateAt(["currentRound"], round - 1);
+        await Promise.all([
+          setStateAt(["rounds", String(round - 1)], null),
+          setStateAt(["currentRound"], round - 1),
+        ]);
       } else {
         return;
       }
@@ -276,7 +281,12 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
                           className="size-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: player.color }}
                         />
-                        {player.name}
+                        <span className="flex flex-col leading-tight">
+                          {player.name}
+                          <span className="text-[11px] font-normal text-muted tabular-nums">
+                            {t.rounds.runningTotal(totals[player.id] ?? 0)}
+                          </span>
+                        </span>
                         {complete && (
                           <span className="text-xs font-semibold text-primary">
                             {t.rounds.roundPreview(config.roundScore(entry, round))}

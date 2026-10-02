@@ -151,13 +151,15 @@ export function SlfBoard({
   const startNextRound = async () => {
     const next = roundIndex + 1;
     const letter = chooseLetter(usedLetters(state), state.settings.excludedLetters ?? []);
+    runReveal(letter);
     try {
-      await mergeStateAt(
-        ["rounds", String(next)],
-        buildRound(letter) as unknown as Record<string, never>,
-      );
-      await setStateAt(["currentRound"], next);
-      runReveal(letter);
+      await Promise.all([
+        mergeStateAt(
+          ["rounds", String(next)],
+          buildRound(letter) as unknown as Record<string, never>,
+        ),
+        setStateAt(["currentRound"], next),
+      ]);
     } catch {
       alert(t.error.saveFailed);
     }

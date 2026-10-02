@@ -7,8 +7,13 @@ Implementierte Spiele: **Punkteblock** (universell, mit Vorlagen für Rommé,
 Uno, Mau-Mau, Skyjo, Hearts, Canasta, 6 nimmt!, Flip 7, Cabo, Yaniv,
 Zehntausend, Skat, Schafkopf, Doppelkopf & Co. – optionale Rundensummen-Prüfung),
 **Kniffel**, **Wizard**, **Phase 10**, **Stadt Land Fluss** (live tippen!),
-**Spades**. Neue Spiele sind über das Registry-System schnell ergänzt
+**Spades**, **Darts** (X01 mit Checkout-Vorschlag, Cricket). Neue Spiele
+sind über das Registry-System schnell ergänzt
 (siehe [ARCHITECTURE.md](ARCHITECTURE.md)).
+
+Dazu ein **Kartenspiel-Katalog** (`/katalog`): rund 50 Spiele mit
+Kurzanleitung, Links zu Erklärvideos, Favoriten, Filter nach Spielerzahl und
+vorhandenen Karten, Zufallsvorschlag und anonymen Community-Bewertungen.
 
 ## Stack
 

@@ -20,6 +20,11 @@ export interface GameBoardProps<TState> {
   onNewGame?: () => void;
   /** Called once when the game ends (verdict.over). */
   onGameOver?: () => void;
+  /**
+   * Sets a finished game back to playing — e.g. to undo the winning entry.
+   * Writes are accepted again right after the call.
+   */
+  onReopen?: () => Promise<void>;
 }
 
 export interface GameSettingsPanelProps<TSettings> {

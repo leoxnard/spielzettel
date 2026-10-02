@@ -1,4 +1,4 @@
-import { data, redirect } from "react-router";
+import { data, Link, redirect } from "react-router";
 
 import type { Route } from "./+types/home";
 import { GameGrid } from "~/components/home/GameGrid";
@@ -48,6 +48,26 @@ export default function Home() {
       <div className="space-y-8">
         <ActiveGames />
         <GameGrid />
+        <Link
+          to="/katalog"
+          className="group flex items-center gap-4 rounded-3xl border border-border/60 bg-primary-soft p-6 transition-colors hover:border-primary/40"
+        >
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-ink shadow-sm">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <rect x="3" y="4" width="11" height="16" rx="2" />
+              <path d="m14 7 4.5 1.2a2 2 0 0 1 1.4 2.4l-2.3 8.7a2 2 0 0 1-2.4 1.4L12 20" />
+            </svg>
+          </span>
+          <span className="flex-1">
+            <span className="block font-display text-xl font-semibold tracking-tight">
+              {t.catalog.teaserTitle}
+            </span>
+            <span className="mt-0.5 block text-sm text-muted">{t.catalog.teaserText}</span>
+          </span>
+          <span className="hidden text-sm font-semibold text-primary sm:inline">
+            {t.catalog.teaserCta} →
+          </span>
+        </Link>
         <JoinByCode />
       </div>
       <div className="mt-8">

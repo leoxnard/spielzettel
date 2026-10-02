@@ -1,3 +1,4 @@
+import { dartsDefinition } from "./darts";
 import { kniffelDefinition } from "./kniffel";
 import { phase10Definition } from "./phase10";
 import { punkteDefinition } from "./punkte";
@@ -23,6 +24,7 @@ export const GAMES: GameDefinition<any, any>[] = [
   phase10Definition,
   slfDefinition,
   spadesDefinition,
+  dartsDefinition,
 ];
 
 export function getGame(slug: string) {

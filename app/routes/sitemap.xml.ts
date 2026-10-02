@@ -1,7 +1,14 @@
+import { CATALOG } from "~/catalog/games";
 import { SITE_URL } from "~/lib/seo";
 
 const PAGES = [
   { path: "/", changefreq: "weekly", priority: "1.0" },
+  { path: "/katalog", changefreq: "weekly", priority: "0.9" },
+  ...CATALOG.map((g) => ({
+    path: `/katalog/${g.slug}`,
+    changefreq: "monthly",
+    priority: "0.7",
+  })),
   { path: "/impressum", changefreq: "yearly", priority: "0.3" },
 ];
 

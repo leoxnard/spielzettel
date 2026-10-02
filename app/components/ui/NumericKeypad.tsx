@@ -124,6 +124,35 @@ export function NumericKeypad({
     }
   };
 
+  // Next keypad field in document order — lets you enter a whole round
+  // without closing the keypad in between.
+  const [nextField, setNextField] = useState<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    const fields = Array.from(
+      document.querySelectorAll<HTMLInputElement>("input[data-keypad]:not(:disabled)"),
+    );
+    const i = fields.indexOf(inputRef.current!);
+    setNextField(i >= 0 ? fields[i + 1] ?? null : null);
+
+    // Keep the field visible above the sheet.
+    const sheet = keypadRef.current?.offsetHeight ?? 0;
+    document.body.style.paddingBottom = `${sheet}px`;
+    const rect = inputRef.current?.getBoundingClientRect();
+    if (rect) {
+      const limit = window.innerHeight - sheet - 24;
+      if (rect.bottom > limit) window.scrollBy({ top: rect.bottom - limit, behavior: "smooth" });
+    }
+    return () => {
+      document.body.style.paddingBottom = "";
+    };
+  }, [isOpen]);
+
+  const goNext = () => {
+    commitDraft();
+    nextField?.focus();
+  };
+
   const closeKeypad = () => {
     commitDraft();
     setIsOpen(false);
@@ -177,6 +206,7 @@ export function NumericKeypad({
         ref={inputRef}
         type="text"
         inputMode="none"
+        data-keypad=""
         value={draft}
         placeholder={placeholder}
         aria-label={label}
@@ -203,23 +233,31 @@ export function NumericKeypad({
             style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
           >
             <div className="mx-auto max-w-sm px-4 pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-muted">{label}</span>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <span className="block truncate text-xs font-medium text-muted">
+                    {label}
+                  </span>
+                  <span className="font-display text-3xl font-semibold tabular-nums">
+                    {draft === "" ? placeholder : draft}
+                  </span>
+                </div>
                 <button
                   type="button"
+                  onPointerDown={(e) => e.preventDefault()}
                   onClick={closeKeypad}
-                  className="text-sm text-primary font-medium"
+                  className="h-11 rounded-xl px-3 text-sm font-medium text-primary"
                 >
                   {t.rounds.keypadDone}
                 </button>
               </div>
-              <div className="grid grid-cols-3 gap-2 pb-4">
+              <div className="grid grid-cols-3 gap-2 pb-2">
                 {KEYS.map((row, ri) =>
                   row.map((key) => (
                     <button
                       key={`${ri}-${key}`}
                       type="button"
-                      onMouseDown={(e) => {
+                      onPointerDown={(e) => {
                         e.preventDefault();
                         handleKey(key);
                       }}
@@ -236,6 +274,15 @@ export function NumericKeypad({
                   )),
                 )}
               </div>
+              <button
+                type="button"
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={nextField ? goNext : closeKeypad}
+                className="mb-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-base font-semibold text-primary-ink transition-opacity active:opacity-80"
+              >
+                {nextField ? t.rounds.keypadNext : t.rounds.keypadDone}
+                {nextField && <span aria-hidden>→</span>}
+              </button>
             </div>
           </div>,
           document.body,

@@ -92,8 +92,21 @@ atomares UPDATE pro Zeile, siehe `supabase/migrations/`):
   den eigenen Namen tippen. Hinzufügen/Entfernen/Umsortieren schreiben
   weiterhin das ganze Array (seltene Host-Aktionen).
 
-Gleiche Zelle/gleicher Spieler bleibt bewusst Last-Write-Wins. Boards
-überlagern schwebende Schreibvorgänge optimistisch, bis Realtime bestätigt.
+Gleiche Zelle/gleicher Spieler bleibt bewusst Last-Write-Wins.
+
+**Optimistische Writes (zentral):** Alle Schreibzugriffe eines Spiels laufen
+über `useRealtimeGame` → `actions` (`setStateAt`, `mergeStateAt`,
+`mergePlayer`, `update`). Jeder Write landet als Op in einer Warteschlange, die
+lokal über die letzte Server-Zeile gelegt wird
+([app/lib/optimistic.ts](app/lib/optimistic.ts) bildet dafür die
+Postgres-Semantik von `jsonb_set`/`#-`/`||` exakt nach). Die Ops gehen der
+Reihe nach raus; bestätigt wird über die Zeile, die der RPC zurückgibt
+(Migration `0013`, ohne sie: Refetch) — Server-Zeile und Wegfall der Op landen
+im selben Render, dadurch flackert nichts. Netzfehler werden mit Backoff
+wiederholt, der Wert bleibt sichtbar; `SyncIndicator` zeigt nur an, wenn es
+länger dauert. Boards halten **keine** eigenen Pending-Overlays mehr, nur noch
+Entwürfe während eines Debounce. `updated_at` ist dank Trigger strikt
+monoton (`clock_timestamp()`), damit ältere Payloads sicher verworfen werden.
 
 ### Realtime + SSR
 
@@ -103,7 +116,7 @@ Gleiche Zelle/gleicher Spieler bleibt bewusst Last-Write-Wins. Boards
   `postgres_changes`-UPDATEs, refetcht einmal bei `SUBSCRIBED` (schließt die
   Lücke zwischen SSR-Snapshot und Abo-Start), bei Reconnect und wenn der Tab
   wieder sichtbar wird; ältere Payloads (per `updated_at`) werden verworfen.
-- Mutationen gehen direkt über supabase-js; einzige Ausnahme ist das Anlegen
+- Mutationen gehen über die `actions` des Hooks direkt an supabase-js; einzige Ausnahme ist das Anlegen
   eines Spiels (react-router `action` auf `/` → Redirect zur Lobby).
 - **Immersiver Modus:** Während gespielt wird, setzt `routes/game.tsx`
   `html.immersive`. Auf einem quer gehaltenen Handy (Landscape, niedrige Höhe)
@@ -147,3 +160,19 @@ Immer gleich:
 - Alle UI-Strings in `i18n/de.ts` (zweite Sprache später = eine neue Datei).
 - Semantische Farb-Tokens statt Roh-Farben (siehe [DESIGN.md](DESIGN.md)).
 - `npm run typecheck`, `npm test`, `npm run build` müssen grün sein.
+
+## Katalog
+
+`/katalog` und `/katalog/:slug` listen Kartenspiele mit Kurzanleitung
+([app/catalog/games.ts](app/catalog/games.ts), Typen in
+[app/catalog/types.ts](app/catalog/types.ts)). Die Daten bleiben serverseitig:
+Die Übersicht bekommt per `loader` nur die schlanken Listenfelder
+(`toListItem`), die Detailseite ein Spiel. Filter (Spielerzahl, vorhandene
+Karten inkl. ableitbarer Blätter, Art, Dauer, Favoriten) sind reine Funktionen
+in [app/catalog/filter.ts](app/catalog/filter.ts). Favoriten, „Meine Karten"
+und eigene Bewertungen liegen in localStorage
+([app/catalog/favorites.ts](app/catalog/favorites.ts)). Community-Bewertungen
+(1–5 Sterne, eine pro Gerät über eine zufällige Geräte-ID) laufen über die
+RPCs `catalog_rating_stats` / `rate_catalog_game` (Migration `0014`); fehlt die
+Migration, blendet die UI Bewertungen einfach aus. `sheet` verknüpft ein
+Katalogspiel mit einem Block (optional mit Punkteblock-Vorlage).

@@ -6,7 +6,7 @@ const UNIQUE_VIOLATION = "23505";
 
 export async function createGame(
   gameType: string,
-  opts?: { groupId?: string; players?: Player[] },
+  opts?: { groupId?: string; players?: Player[]; state?: Record<string, Json> },
 ): Promise<GameRow> {
   let lastError: unknown;
   // Collisions are ~1 in 28M — retry a couple of times just in case.
@@ -17,6 +17,7 @@ export async function createGame(
     };
     if (opts?.groupId) insert.group_id = opts.groupId;
     if (opts?.players) insert.players = opts.players as unknown as Json;
+    if (opts?.state) insert.state = opts.state;
     const { data, error } = await supabase
       .from("games")
       .insert(insert)
@@ -64,9 +65,25 @@ export async function updateGame(
     status: GameStatus;
     state: Record<string, Json>;
   }>,
-): Promise<void> {
-  const { error } = await supabase.from("games").update(patch).eq("id", id);
+): Promise<GameRow | null> {
+  const { data, error } = await supabase
+    .from("games")
+    .update(patch)
+    .eq("id", id)
+    .select()
+    .maybeSingle();
   if (error) throw error;
+  return data as GameRow | null;
+}
+
+/**
+ * The write RPCs return the updated row (migration 0013) so the writer can
+ * confirm its optimistic value without waiting for the realtime echo. Before
+ * 0013 they return nothing — callers then refetch.
+ */
+function rowOrNull(data: unknown): GameRow | null {
+  const row = Array.isArray(data) ? data[0] : data;
+  return row && typeof row === "object" && "id" in row ? (row as GameRow) : null;
 }
 
 /**
@@ -78,13 +95,14 @@ export async function setStateAt(
   gameId: string,
   path: string[],
   value: Json | null,
-): Promise<void> {
-  const { error } = await supabase.rpc("set_state_at", {
+): Promise<GameRow | null> {
+  const { data, error } = await supabase.rpc("set_state_at", {
     p_game_id: gameId,
     p_path: path,
     p_value: value,
   });
   if (error) throw error;
+  return rowOrNull(data);
 }
 
 /**
@@ -95,13 +113,14 @@ export async function mergePlayer(
   gameId: string,
   playerId: string,
   patch: Partial<Pick<Player, "name" | "color">>,
-): Promise<void> {
-  const { error } = await supabase.rpc("merge_player", {
+): Promise<GameRow | null> {
+  const { data, error } = await supabase.rpc("merge_player", {
     p_game_id: gameId,
     p_player_id: playerId,
     p_patch: patch,
   });
   if (error) throw error;
+  return rowOrNull(data);
 }
 
 /**
@@ -113,11 +132,12 @@ export async function mergeStateAt(
   gameId: string,
   path: string[],
   value: Record<string, Json | null>,
-): Promise<void> {
-  const { error } = await supabase.rpc("merge_state_at", {
+): Promise<GameRow | null> {
+  const { data, error } = await supabase.rpc("merge_state_at", {
     p_game_id: gameId,
     p_path: path,
     p_value: value,
   });
   if (error) throw error;
+  return rowOrNull(data);
 }

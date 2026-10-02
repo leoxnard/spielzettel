@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Modal } from "~/components/ui/Modal";
 import { cx } from "~/lib/cx";
@@ -33,9 +33,6 @@ export function KniffelBoard({
   setStateAt,
 }: GameBoardProps<KniffelState>) {
   const [active, setActive] = useState<ActiveCell | null>(null);
-  // Optimistic overlay per cell, keyed "playerId/category". Entries are
-  // dropped as soon as the live state confirms them.
-  const [pending, setPending] = useState<Record<string, number | null>>({});
   // Dice-vs-direct choice for the sum modal, owned here so it carries over
   // between cells instead of resetting every time a modal opens.
   const [sumInputMode, setSumInputMode] = useState<"dice" | "direct">("dice");
@@ -44,53 +41,15 @@ export function KniffelBoard({
     null,
   );
 
-  useEffect(() => {
-    setPending((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      for (const key of Object.keys(next)) {
-        const [playerId, category] = key.split("/");
-        const server = playerScores(state, playerId)[
-          category as CategoryDef["id"]
-        ];
-        const confirmed =
-          next[key] === null ? server === undefined : server === next[key];
-        if (confirmed) {
-          delete next[key];
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [state]);
-
   const scoreOf = (player: Player, category: CategoryDef["id"]) => {
-    const key = `${player.id}/${category}`;
-    if (key in pending) return pending[key] ?? undefined;
     return playerScores(state, player.id)[category];
   };
 
-  const effectiveScores = (player: Player) => {
-    const merged = { ...playerScores(state, player.id) };
-    for (const [key, value] of Object.entries(pending)) {
-      const [playerId, category] = key.split("/");
-      if (playerId !== player.id) continue;
-      if (value === null) delete merged[category as CategoryDef["id"]];
-      else merged[category as CategoryDef["id"]] = value;
-    }
-    return merged;
-  };
+  const effectiveScores = (player: Player) => playerScores(state, player.id);
 
   const write = (player: Player, def: CategoryDef, value: number | null) => {
-    const key = `${player.id}/${def.id}`;
-    setPending((prev) => ({ ...prev, [key]: value }));
     setActive(null);
     setStateAt(["scores", player.id, def.id], value).catch(() => {
-      setPending((prev) => {
-        const next = { ...prev };
-        delete next[key];
-        return next;
-      });
       alert(t.error.saveFailed);
     });
   };
