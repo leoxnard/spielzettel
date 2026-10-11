@@ -85,11 +85,7 @@ export interface RoundsConfig<
   }) => Verdict;
   EntryEditor: ComponentType<EntryEditorProps<E>>;
   /** Extra per-player line in the totals header (e.g. "Phase 4"). */
-  playerMeta?: (
-    playerId: string,
-    state: RoundsState<E, S>,
-    players: Player[],
-  ) => string | null;
+  playerMeta?: (playerId: string, state: RoundsState<E, S>) => string | null;
   /** Group-stats bucket label (e.g. Punkteblock → chosen preset). */
   groupLabel?: (state: RoundsState<E, S>) => string;
   /** Allow submitting a round even if some players have no entry (they get 0). */

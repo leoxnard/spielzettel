@@ -48,13 +48,6 @@ export const spadesDefinition = defineRoundsGame<BidTricksEntry, LimitSettings>(
     teams: spadesTeams,
     teamRoundScore: (entries) => spadesTeamRoundScore(entries),
     teamTotalScore: (rounds) => spadesTeamTotal(rounds),
-    playerMeta: (playerId, _state, players) => {
-      const partnerId = spadesTeams(players)
-        .find((team) => team.includes(playerId))
-        ?.find((id) => id !== playerId);
-      const partner = players.find((p) => p.id === partnerId);
-      return partner ? t.spades.partnerOf(partner.name) : null;
-    },
     turnChip: "dealer",
     // Tricks taken always total 13 in a round (bids need not).
     roundWarning: ({ entries, players }) => {

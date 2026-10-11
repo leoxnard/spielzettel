@@ -427,6 +427,10 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
   mergeStateAt: (path: string[], value: Record<string, Json | null>) => Promise<void>;
 }) {
   const [editMode, setEditMode] = useState(false);
+  // One column per team in partnership games, otherwise one per player.
+  const columns = config.teams
+    ? config.teams(players).map((ids) => players.filter((p) => ids.includes(p.id)))
+    : players.map((p) => [p]);
   const labelCell =
     "sticky left-0 z-10 bg-surface px-4 py-2.5 text-left text-sm font-medium whitespace-nowrap";
 
@@ -456,18 +460,23 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
             <th className={cx(labelCell, "py-3 text-[11px] font-semibold uppercase tracking-wider text-muted")}>
               {t.rounds.totalsTab}
             </th>
-            {players.map((p) => (
-              <th key={p.id} className="min-w-20 px-3 py-3">
-                <span className="inline-flex items-center gap-1.5 font-display text-sm font-semibold">
+            {columns.map((team) => (
+              <th key={team[0].id} className="min-w-20 px-3 py-3">
+                {team.map((p) => (
                   <span
-                    className="size-2 rounded-full"
-                    style={{ backgroundColor: p.color }}
-                  />
-                  {p.name}
-                </span>
-                {config.playerMeta && (
+                    key={p.id}
+                    className="flex items-center justify-center gap-1.5 font-display text-sm font-semibold"
+                  >
+                    <span
+                      className="size-2 rounded-full"
+                      style={{ backgroundColor: p.color }}
+                    />
+                    {p.name}
+                  </span>
+                ))}
+                {config.playerMeta && team.length === 1 && (
                   <span className="mt-0.5 block text-[11px] font-medium text-muted">
-                    {config.playerMeta(p.id, state, players)}
+                    {config.playerMeta(team[0].id, state)}
                   </span>
                 )}
               </th>
@@ -478,7 +487,7 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
           {playedRounds === 0 && (
             <tr>
               <td
-                colSpan={players.length + 1}
+                colSpan={columns.length + 1}
                 className="px-4 py-6 text-sm text-muted"
               >
                 {t.rounds.fillAllHint}
@@ -488,19 +497,27 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
           {Array.from({ length: playedRounds }, (_, i) => (
             <tr key={i} className="border-b border-border/40">
               <td className={labelCell}>{t.rounds.round(i + 1)}</td>
-              {players.map((p) => {
-                const entry = entryAt(state, i, p.id);
-                const score = playerRoundScore(state, config, players, i, p.id);
+              {columns.map((team) => {
+                const score = playerRoundScore(state, config, players, i, team[0].id);
                 return (
-                  <td key={p.id} className="px-3 py-2.5 text-sm">
+                  <td key={team[0].id} className="px-3 py-2.5 text-sm">
                     {editMode ? (
-                      <div className="flex justify-center">
-                        <config.EntryEditor
-                          player={p}
-                          value={entry}
-                          onChange={(value) => handleEditEntry(i, p.id, value)}
-                          roundIndex={i}
-                        />
+                      <div className="flex flex-col items-center gap-2">
+                        {team.map((p) => (
+                          <div key={p.id} className="flex flex-col items-center gap-1">
+                            {team.length > 1 && (
+                              <span className="text-[11px] font-medium text-muted">
+                                {p.name}
+                              </span>
+                            )}
+                            <config.EntryEditor
+                              player={p}
+                              value={entryAt(state, i, p.id)}
+                              onChange={(value) => handleEditEntry(i, p.id, value)}
+                              roundIndex={i}
+                            />
+                          </div>
+                        ))}
                       </div>
                     ) : (
                       <>{score ?? "–"}</>
@@ -514,12 +531,12 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
             <td className={cx(labelCell, "bg-field font-display text-base font-semibold")}>
               {t.rounds.total}
             </td>
-            {players.map((p) => (
+            {columns.map((team) => (
               <td
-                key={p.id}
+                key={team[0].id}
                 className="px-3 py-3 font-display text-base font-semibold"
               >
-                {totals[p.id]}
+                {totals[team[0].id]}
               </td>
             ))}
           </tr>
