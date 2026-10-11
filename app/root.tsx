@@ -19,8 +19,9 @@ import { THEME_SCRIPT } from "~/lib/theme";
 import { warmUpDatabase } from "~/lib/warmup";
 
 export const links: Route.LinksFunction = () => [
-  { rel: "icon", href: "/icons/tablecells.png", type: "image/png" },
-  { rel: "apple-touch-icon", href: "/icons/tablecells.png" },
+  { rel: "icon", href: "/icons/icon.svg", type: "image/svg+xml" },
+  { rel: "icon", href: "/icons/favicon-32.png", type: "image/png", sizes: "32x32" },
+  { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
