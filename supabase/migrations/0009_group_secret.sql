@@ -15,7 +15,7 @@ alter table public.groups add column if not exists secret_hash text;
 -- Replace the name-only key with (name, secret). Existing groups have no
 -- secret_hash, so they all sit in the '' bucket and stay unique by name.
 drop index if exists groups_name_unique;
-create unique index groups_name_secret_unique
+create unique index if not exists groups_name_secret_unique
   on public.groups (lower(name), coalesce(secret_hash, ''));
 
 -- Enter a group by name (+ optional secret). Find-or-create by (name, secret)
