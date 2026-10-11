@@ -112,7 +112,7 @@ function GameRow({ game, deletingId, onDelete }: {
 }
 
 export function ActiveGames() {
-  const active = useRecentGames().filter((g) => g.status === "playing");
+  const active = useRecentGames().filter((g) => g.status !== "finished");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   if (active.length === 0) return null;
 
