@@ -45,6 +45,16 @@ export interface RoundsConfig<
    * (e.g. Spades bag penalties). Defaults to the sum of roundScore.
    */
   totalScore?: (entries: (E | undefined)[], settings: S) => number;
+  /**
+   * Partnership games: groups of player ids that share one score (e.g.
+   * Spades partners). Players in no group score alone. Requires
+   * teamRoundScore and teamTotalScore.
+   */
+  teams?: (players: Player[]) => string[][];
+  /** With teams: a team's score in one round from the partners' entries. */
+  teamRoundScore?: (entries: (E | undefined)[], roundIndex: number) => number;
+  /** With teams: a team's total; one array of partner entries per completed round. */
+  teamTotalScore?: (rounds: (E | undefined)[][], settings: S) => number;
   /** Fixed number of rounds (e.g. Wizard) — null/absent = open-ended. */
   maxRounds?: (players: Player[], settings: S) => number | null;
   /** Heading of the current round, defaults to "Runde N". */
@@ -75,7 +85,11 @@ export interface RoundsConfig<
   }) => Verdict;
   EntryEditor: ComponentType<EntryEditorProps<E>>;
   /** Extra per-player line in the totals header (e.g. "Phase 4"). */
-  playerMeta?: (playerId: string, state: RoundsState<E, S>) => string | null;
+  playerMeta?: (
+    playerId: string,
+    state: RoundsState<E, S>,
+    players: Player[],
+  ) => string | null;
   /** Group-stats bucket label (e.g. Punkteblock → chosen preset). */
   groupLabel?: (state: RoundsState<E, S>) => string;
   /** Allow submitting a round even if some players have no entry (they get 0). */

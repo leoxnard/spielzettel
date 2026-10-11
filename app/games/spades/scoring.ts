@@ -35,3 +35,68 @@ export function spadesTotal(entries: (BidTricksEntry | undefined)[]): number {
     score - Math.floor(bags / SPADES_BAGS_PER_PENALTY) * SPADES_BAG_PENALTY
   );
 }
+
+/**
+ * Partnerships: with 4 or 6 players, partners sit opposite each other
+ * (seat i and i + n/2). With 2, 3 or 5 players everyone plays alone
+ * (cutthroat), modelled as teams of one.
+ */
+export function spadesTeams<P extends { id: string }>(players: P[]): string[][] {
+  const n = players.length;
+  if (n !== 4 && n !== 6) return players.map((p) => [p.id]);
+  const half = n / 2;
+  return players
+    .slice(0, half)
+    .map((p, i) => [p.id, players[i + half].id]);
+}
+
+/**
+ * One team's round: non-nil bids and tricks are added up into one team
+ * contract (made = 10 per bid trick + 1 per bag, missed = −10 per bid
+ * trick). Every nil bid scores ±100 on its own; tricks a nil bidder takes
+ * don't count toward the partner's contract. Missing entries are skipped.
+ */
+function spadesTeamRound(entries: (BidTricksEntry | undefined)[]): {
+  score: number;
+  bags: number;
+} {
+  let score = 0;
+  let bid = 0;
+  let tricks = 0;
+  let hasContract = false;
+  for (const entry of entries) {
+    if (!entry || entry.bid === null || entry.tricks === null) continue;
+    if (entry.bid === 0) {
+      score += entry.tricks === 0 ? 100 : -100;
+    } else {
+      hasContract = true;
+      bid += entry.bid;
+      tricks += entry.tricks;
+    }
+  }
+  if (!hasContract) return { score, bags: 0 };
+  if (tricks >= bid) return { score: score + 10 * bid + (tricks - bid), bags: tricks - bid };
+  return { score: score - 10 * bid, bags: 0 };
+}
+
+export function spadesTeamRoundScore(
+  entries: (BidTricksEntry | undefined)[],
+): number {
+  return spadesTeamRound(entries).score;
+}
+
+/** Team total: sum of round scores minus 100 for every 10 team bags. */
+export function spadesTeamTotal(
+  rounds: (BidTricksEntry | undefined)[][],
+): number {
+  let score = 0;
+  let bags = 0;
+  for (const entries of rounds) {
+    const round = spadesTeamRound(entries);
+    score += round.score;
+    bags += round.bags;
+  }
+  return (
+    score - Math.floor(bags / SPADES_BAGS_PER_PENALTY) * SPADES_BAG_PENALTY
+  );
+}

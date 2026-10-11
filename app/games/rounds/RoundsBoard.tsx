@@ -8,6 +8,7 @@ import type { BaseSettings, GameBoardProps } from "../types";
 import {
   entryAt,
   starterForRound,
+  playerRoundScore,
   totals as computeTotals,
   verdictOf,
 } from "./engine";
@@ -289,7 +290,9 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
                         </span>
                         {complete && (
                           <span className="text-xs font-semibold text-primary">
-                            {t.rounds.roundPreview(config.roundScore(entry, round))}
+                            {t.rounds.roundPreview(
+                              playerRoundScore(state, config, players, round, player.id) ?? 0,
+                            )}
                           </span>
                         )}
                       </span>
@@ -464,7 +467,7 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
                 </span>
                 {config.playerMeta && (
                   <span className="mt-0.5 block text-[11px] font-medium text-muted">
-                    {config.playerMeta(p.id, state)}
+                    {config.playerMeta(p.id, state, players)}
                   </span>
                 )}
               </th>
@@ -487,6 +490,7 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
               <td className={labelCell}>{t.rounds.round(i + 1)}</td>
               {players.map((p) => {
                 const entry = entryAt(state, i, p.id);
+                const score = playerRoundScore(state, config, players, i, p.id);
                 return (
                   <td key={p.id} className="px-3 py-2.5 text-sm">
                     {editMode ? (
@@ -499,7 +503,7 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
                         />
                       </div>
                     ) : (
-                      <>{entry === undefined ? "–" : config.roundScore(entry, i)}</>
+                      <>{score ?? "–"}</>
                     )}
                   </td>
                 );

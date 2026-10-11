@@ -6,7 +6,13 @@ import {
   LimitSettingsPanel,
   type LimitSettings,
 } from "../rounds/LimitSettingsPanel";
-import { spadesRoundScore, spadesTotal } from "./scoring";
+import {
+  spadesRoundScore,
+  spadesTeamRoundScore,
+  spadesTeams,
+  spadesTeamTotal,
+  spadesTotal,
+} from "./scoring";
 
 function SpadesIcon() {
   return (
@@ -39,6 +45,16 @@ export const spadesDefinition = defineRoundsGame<BidTricksEntry, LimitSettings>(
     allowEmptyEntries: true,
     roundScore: (e) => spadesRoundScore(e),
     totalScore: (entries) => spadesTotal(entries),
+    teams: spadesTeams,
+    teamRoundScore: (entries) => spadesTeamRoundScore(entries),
+    teamTotalScore: (rounds) => spadesTeamTotal(rounds),
+    playerMeta: (playerId, _state, players) => {
+      const partnerId = spadesTeams(players)
+        .find((team) => team.includes(playerId))
+        ?.find((id) => id !== playerId);
+      const partner = players.find((p) => p.id === partnerId);
+      return partner ? t.spades.partnerOf(partner.name) : null;
+    },
     turnChip: "dealer",
     // Tricks taken always total 13 in a round (bids need not).
     roundWarning: ({ entries, players }) => {

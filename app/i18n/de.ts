@@ -210,11 +210,13 @@ export const de = {
       `Zu viele Stiche: ${sum} eingetragen, aber nur 13 pro Runde möglich.`,
     tricksMismatch: (sum: number) =>
       `Stiche ergeben zusammen ${sum}, sollten aber 13 sein.`,
+    partnerOf: (name: string) => `mit ${name}`,
     howItWorks: [
-      "Jeder sagt vor der Runde seine Stiche an (Einzelspieler-Wertung).",
-      "Gebot geschafft: 10 Punkte je gebotenem Stich, +1 je Extrastich (Bag).",
-      "Gebot verfehlt: −10 je gebotenem Stich. Nil (0) geschafft: +100, verfehlt: −100.",
-      "Je 10 gesammelte Bags: −100 Punkte. Standard-Ziel: 500 Punkte.",
+      "Bei 4 oder 6 Personen spielt ihr in Zweierteams: Partner sitzen sich gegenüber (Reihenfolge der Spielerliste). Bei 2, 3 oder 5 Personen spielt jeder für sich.",
+      "Jeder sagt seine Stiche an, Gebote und Stiche im Team werden addiert.",
+      "Gebot geschafft: 10 Punkte je gebotenem Stich, +1 je Extrastich (Bag). Verfehlt: −10 je gebotenem Stich.",
+      "Nil (0) zählt einzeln: geschafft +100, verfehlt −100. Stiche des Nil-Spielers helfen dem Partner nicht.",
+      "Je 10 gesammelte Bags im Team: −100 Punkte. Standard-Ziel: 500 Punkte.",
     ],
   },
   phase10: {
