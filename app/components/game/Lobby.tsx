@@ -8,6 +8,7 @@ import { Input } from "~/components/ui/Input";
 import { Switch } from "~/components/ui/Switch";
 import { t } from "~/i18n/de";
 import { useCurrentGroup } from "~/lib/current-group";
+import { addGroupMember } from "~/lib/group-api";
 import type { GameRow, GroupRow, Json, Player } from "~/lib/types";
 import type { GameActions } from "~/lib/use-realtime-game";
 import type { BaseSettings, GameDefinition } from "~/games/types";
@@ -35,6 +36,10 @@ export function Lobby({ game, actions, definition, group }: LobbyProps) {
     setJoiningGroup(true);
     try {
       await actions.update({ group_id: currentGroup.id });
+      // The game's players join the group's roster (idempotent per name).
+      for (const player of game.players) {
+        if (player.name.trim()) await addGroupMember(currentGroup.id, player.name);
+      }
       await revalidator.revalidate();
     } catch {
       alert(t.error.saveFailed);

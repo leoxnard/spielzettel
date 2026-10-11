@@ -42,7 +42,7 @@ export const de = {
     titleLabel: "Titel",
     titleOptional: "(optional)",
     moveToGroup: (name: string) => `Zur Gruppe ${name} hinzufügen`,
-    moveToGroupHint: "Das Spiel zählt dann in der Gruppenstatistik.",
+    moveToGroupHint: "Das Spiel zählt dann in der Gruppenstatistik, die Spieler werden Mitglieder.",
     playersLabel: "Spieler",
     playersHint: "Auf die farbige Nummer tippen für eine neue Farbe.",
     playerPlaceholder: "Name",
