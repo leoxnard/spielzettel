@@ -64,6 +64,7 @@ export async function updateGame(
     players: Player[];
     status: GameStatus;
     state: Record<string, Json>;
+    group_id: string | null;
   }>,
 ): Promise<GameRow | null> {
   const { data, error } = await supabase

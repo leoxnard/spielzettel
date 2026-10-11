@@ -41,6 +41,8 @@ export const de = {
     subtitle: "Lobby · Wer spielt mit?",
     titleLabel: "Titel",
     titleOptional: "(optional)",
+    moveToGroup: (name: string) => `Zur Gruppe ${name} hinzufügen`,
+    moveToGroupHint: "Das Spiel zählt dann in der Gruppenstatistik.",
     playersLabel: "Spieler",
     playersHint: "Auf die farbige Nummer tippen für eine neue Farbe.",
     playerPlaceholder: "Name",

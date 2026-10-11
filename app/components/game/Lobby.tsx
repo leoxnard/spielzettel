@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useRevalidator } from "react-router";
 
 import { Button } from "~/components/ui/Button";
 import { Card } from "~/components/ui/Card";
@@ -6,6 +7,7 @@ import { Collapsible } from "~/components/ui/Collapsible";
 import { Input } from "~/components/ui/Input";
 import { Switch } from "~/components/ui/Switch";
 import { t } from "~/i18n/de";
+import { useCurrentGroup } from "~/lib/current-group";
 import type { GameRow, GroupRow, Json, Player } from "~/lib/types";
 import type { GameActions } from "~/lib/use-realtime-game";
 import type { BaseSettings, GameDefinition } from "~/games/types";
@@ -22,6 +24,24 @@ interface LobbyProps {
 
 export function Lobby({ game, actions, definition, group }: LobbyProps) {
   const [starting, setStarting] = useState(false);
+  const currentGroup = useCurrentGroup();
+  const revalidator = useRevalidator();
+  const [joiningGroup, setJoiningGroup] = useState(false);
+
+  // A game created outside a group can be moved into the group you're in;
+  // revalidating reloads the group so the roster picker takes over.
+  const addToGroup = async () => {
+    if (!currentGroup) return;
+    setJoiningGroup(true);
+    try {
+      await actions.update({ group_id: currentGroup.id });
+      await revalidator.revalidate();
+    } catch {
+      alert(t.error.saveFailed);
+    } finally {
+      setJoiningGroup(false);
+    }
+  };
 
   // Seed the minimum player count once for a freshly created game — but not
   // for group games, where players are chosen from the roster (no blanks).
@@ -106,6 +126,20 @@ export function Lobby({ game, actions, definition, group }: LobbyProps) {
           onBlur={() => (titleFocused.current = false)}
           onChange={(e) => onTitleChange(e.target.value)}
         />
+
+        {!group && !game.group_id && currentGroup && (
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-field px-4 py-3">
+            <p className="text-xs text-muted">{t.lobby.moveToGroupHint}</p>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={joiningGroup}
+              onClick={addToGroup}
+            >
+              {t.lobby.moveToGroup(currentGroup.name)}
+            </Button>
+          </div>
+        )}
 
         <div className="mt-6">
           {group ? (

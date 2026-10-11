@@ -21,6 +21,7 @@ export type GamePatch = Partial<{
   players: Player[];
   status: GameStatus;
   state: Record<string, Json>;
+  group_id: string | null;
 }>;
 
 type Container = { [key: string]: Json } | Json[];
