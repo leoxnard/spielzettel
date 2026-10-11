@@ -67,6 +67,8 @@ export function computeRanking(games: GameRow[]): PlayerStat[] {
   };
 
   for (const game of games) {
+    // Only finished games count — a running game's leader hasn't won yet.
+    if (game.status !== "finished") continue;
     const def = getGame(game.game_type);
     if (!def || !def.hasStarted(game.state)) continue;
 
@@ -153,7 +155,7 @@ export function computeGroupStats(games: GameRow[]): GroupStats {
     });
     typeCounts.set(label, (typeCounts.get(label) ?? 0) + 1);
 
-    if (winnerIds.length > 0) playedGames++;
+    if (game.status === "finished" && winnerIds.length > 0) playedGames++;
   }
 
   const byType = [...typeCounts.entries()]
