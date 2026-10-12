@@ -9,6 +9,7 @@ import {
   entryAt,
   starterForRound,
   playerRoundScore,
+  teamOf,
   totals as computeTotals,
   verdictOf,
 } from "./engine";
@@ -286,6 +287,8 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
                           {player.name}
                           <span className="text-[11px] font-normal text-muted tabular-nums">
                             {t.rounds.runningTotal(totals[player.id] ?? 0)}
+                            {config.scoreNote &&
+                              ` · ${config.scoreNote(teamOf(config, players, player.id), state) ?? ""}`}
                           </span>
                         </span>
                         {complete && (
@@ -474,6 +477,14 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
                     {p.name}
                   </span>
                 ))}
+                {config.scoreNote && (
+                  <span className="mt-0.5 block text-[11px] font-medium text-muted">
+                    {config.scoreNote(
+                      team.map((p) => p.id),
+                      state,
+                    )}
+                  </span>
+                )}
                 {config.playerMeta && team.length === 1 && (
                   <span className="mt-0.5 block text-[11px] font-medium text-muted">
                     {config.playerMeta(team[0].id, state)}

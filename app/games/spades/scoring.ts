@@ -105,3 +105,9 @@ export function spadesTeamTotal(
     score - Math.floor(bags / SPADES_BAGS_PER_PENALTY) * SPADES_BAG_PENALTY
   );
 }
+
+/** Team bags collected toward the next −100 penalty (0–9). */
+export function spadesTeamBags(rounds: (BidTricksEntry | undefined)[][]): number {
+  const bags = rounds.reduce((sum, entries) => sum + spadesTeamRound(entries).bags, 0);
+  return bags % SPADES_BAGS_PER_PENALTY;
+}

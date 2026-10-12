@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   spadesRoundScore,
+  spadesTeamBags,
   spadesTeamRoundScore,
   spadesTeams,
   spadesTeamTotal,
@@ -117,5 +118,13 @@ describe("spadesTeamTotal", () => {
     ];
     // 5 rounds × (40 + 2 bags) = 210, 10 bags → −100
     expect(spadesTeamTotal(Array.from({ length: 5 }, () => round))).toBe(110);
+  });
+});
+
+describe("spadesTeamBags", () => {
+  it("counts bags toward the next penalty", () => {
+    const round = [{ bid: 2, tricks: 5 }, { bid: 2, tricks: 3 }];
+    // 4 bags per round: 3 rounds = 12 → 2 toward the next penalty
+    expect(spadesTeamBags([round, round, round])).toBe(2);
   });
 });

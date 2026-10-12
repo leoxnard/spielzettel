@@ -84,6 +84,11 @@ export interface RoundsConfig<
     playedRounds: number;
   }) => Verdict;
   EntryEditor: ComponentType<EntryEditorProps<E>>;
+  /**
+   * Short note next to a score (e.g. Spades bags), shown under the running
+   * total and in the totals header. Gets the ids sharing that score.
+   */
+  scoreNote?: (playerIds: string[], state: RoundsState<E, S>) => string | null;
   /** Extra per-player line in the totals header (e.g. "Phase 4"). */
   playerMeta?: (playerId: string, state: RoundsState<E, S>) => string | null;
   /** Group-stats bucket label (e.g. Punkteblock → chosen preset). */

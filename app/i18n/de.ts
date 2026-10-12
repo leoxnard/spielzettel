@@ -212,6 +212,7 @@ export const de = {
       `Zu viele Stiche: ${sum} eingetragen, aber nur 13 pro Runde möglich.`,
     tricksMismatch: (sum: number) =>
       `Stiche ergeben zusammen ${sum}, sollten aber 13 sein.`,
+    bags: (n: number, limit: number) => `Bags ${n}/${limit}`,
     howItWorks: [
       "Bei 4 oder 6 Personen spielt ihr in Zweierteams: Partner sitzen sich gegenüber (Reihenfolge der Spielerliste). Bei 2, 3 oder 5 Personen spielt jeder für sich.",
       "Jeder sagt seine Stiche an, Gebote und Stiche im Team werden addiert.",
