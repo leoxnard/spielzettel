@@ -8,8 +8,10 @@ export const SPADES_BAGS_PER_PENALTY = 10;
  * Nil (bid 0): +100 geschafft, −100 verfehlt.
  */
 export function spadesRoundScore(entry: BidTricksEntry): number {
-  const { bid, tricks } = entry;
-  if (bid === null || tricks === null) return 0;
+  const { bid } = entry;
+  // Tricks left empty after the round mean none were taken.
+  const tricks = entry.tricks ?? 0;
+  if (bid === null) return 0;
   if (bid === 0) return tricks === 0 ? 100 : -100;
   if (tricks >= bid) return 10 * bid + (tricks - bid);
   return -10 * bid;
@@ -17,8 +19,9 @@ export function spadesRoundScore(entry: BidTricksEntry): number {
 
 /** Bags a made non-nil bid collects in one round. */
 export function spadesBags(entry: BidTricksEntry): number {
-  const { bid, tricks } = entry;
-  if (bid === null || tricks === null || bid === 0) return 0;
+  const { bid } = entry;
+  const tricks = entry.tricks ?? 0;
+  if (bid === null || bid === 0) return 0;
   return tricks > bid ? tricks - bid : 0;
 }
 
@@ -54,7 +57,7 @@ export function spadesTeams<P extends { id: string }>(players: P[]): string[][] 
  * One team's round: non-nil bids and tricks are added up into one team
  * contract (made = 10 per bid trick + 1 per bag, missed = −10 per bid
  * trick). Every nil bid scores ±100 on its own; tricks a nil bidder takes
- * don't count toward the partner's contract. Missing entries are skipped.
+ * don't count toward the partner's contract. Players without a bid are skipped; empty tricks count as 0.
  */
 function spadesTeamRound(entries: (BidTricksEntry | undefined)[]): {
   score: number;
@@ -65,13 +68,15 @@ function spadesTeamRound(entries: (BidTricksEntry | undefined)[]): {
   let tricks = 0;
   let hasContract = false;
   for (const entry of entries) {
-    if (!entry || entry.bid === null || entry.tricks === null) continue;
+    if (!entry || entry.bid === null) continue;
+    // Tricks left empty after the round mean none were taken.
+    const taken = entry.tricks ?? 0;
     if (entry.bid === 0) {
-      score += entry.tricks === 0 ? 100 : -100;
+      score += taken === 0 ? 100 : -100;
     } else {
       hasContract = true;
       bid += entry.bid;
-      tricks += entry.tricks;
+      tricks += taken;
     }
   }
   if (!hasContract) return { score, bags: 0 };

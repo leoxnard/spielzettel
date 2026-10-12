@@ -95,6 +95,15 @@ describe("spadesTeamRoundScore", () => {
     ).toBe(-100 - 40);
   });
 
+  it("treats empty tricks as zero, so a nil with no tricks scores 100", () => {
+    expect(
+      spadesTeamRoundScore([
+        { bid: 0, tricks: null },
+        { bid: 4, tricks: 4 },
+      ]),
+    ).toBe(140);
+  });
+
   it("matches individual scoring for a team of one", () => {
     expect(spadesTeamRoundScore([{ bid: 4, tricks: 6 }])).toBe(42);
   });
