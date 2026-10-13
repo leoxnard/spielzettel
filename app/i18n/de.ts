@@ -112,6 +112,9 @@ export const de = {
     roundOf: (n: number, of: number) => `Runde ${n} von ${of}`,
     finishRound: "Runde abschließen",
     revertRound: "Letzte Runde zurücknehmen",
+    deleteRound: (n: number) => `Runde ${n} löschen`,
+    deleteRoundConfirm: (n: number) =>
+      `Runde ${n} löschen? Die späteren Runden rücken nach.`,
     starter: (name: string) => `${name} beginnt`,
     dealer: (name: string) => `${name} gibt`,
     total: "Gesamt",

@@ -177,6 +177,26 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
     }
   };
 
+  // Removes any played round; later rounds move up one slot.
+  const deleteRound = async (index: number) => {
+    if (!confirm(t.rounds.deleteRoundConfirm(index + 1))) return;
+    const next: Record<string, Json> = {};
+    for (const [key, value] of Object.entries(state.rounds ?? {})) {
+      const r = Number(key);
+      if (r < index) next[key] = value as Json;
+      else if (r > index) next[String(r - 1)] = value as Json;
+    }
+    setUndoStack([]);
+    try {
+      await Promise.all([
+        setStateAt(["rounds"], next),
+        setStateAt(["currentRound"], Math.max(0, state.currentRound - 1)),
+      ]);
+    } catch {
+      alert(t.error.saveFailed);
+    }
+  };
+
   const redoRevert = async () => {
     if (undoStack.length === 0) return;
     const [removed, ...rest] = undoStack;
@@ -350,6 +370,7 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
           playedRounds={playedRounds}
           isFinished={isFinished}
           onRevertRound={revertRound}
+          onDeleteRound={deleteRound}
           undoStackLength={undoStack.length}
           onRedoRevert={redoRevert}
           onGameOver={onGameOver}
@@ -406,6 +427,7 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
   playedRounds,
   isFinished,
   onRevertRound,
+  onDeleteRound,
   undoStackLength,
   onRedoRevert,
   onGameOver,
@@ -418,6 +440,7 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
   playedRounds: number;
   isFinished: boolean;
   onRevertRound: () => void;
+  onDeleteRound: (index: number) => void;
   undoStackLength: number;
   onRedoRevert: () => void;
   onGameOver?: () => void;
@@ -501,7 +524,23 @@ function TotalsTable<E extends Json, S extends BaseSettings>({
           )}
           {Array.from({ length: playedRounds }, (_, i) => (
             <tr key={i} className="border-b border-border/40">
-              <td className={labelCell}>{t.rounds.round(i + 1)}</td>
+              <td className={labelCell}>
+                <div className="flex items-center gap-2">
+                  {t.rounds.round(i + 1)}
+                  {editMode && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteRound(i)}
+                      aria-label={t.rounds.deleteRound(i + 1)}
+                      className="flex size-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-field hover:text-danger"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </td>
               {columns.map((team) => {
                 const score = playerRoundScore(state, config, players, i, team[0].id);
                 return (
