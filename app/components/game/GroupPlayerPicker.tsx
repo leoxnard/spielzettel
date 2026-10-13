@@ -30,19 +30,25 @@ export function GroupPlayerPicker({
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Rows = roster ∪ any players already in the game (so stragglers can be
-  // toggled off), keyed by normalized name.
-  const byId = new Map<string, string>();
-  for (const m of members) byId.set(m.id, m.name);
-  for (const p of players) {
-    const id = norm(p.name);
-    if (id && !byId.has(id)) byId.set(id, p.name);
-  }
-  const rows = [...byId.entries()].map(([id, name]) => ({
-    id,
-    name,
-    active: players.some((p) => norm(p.name) === id),
-  }));
+  // Rows = the game's players in seat order (reorderable), then the rest of
+  // the roster. Keyed by normalized name.
+  const activeIds = new Set(players.map((p) => norm(p.name)));
+  const rows = [
+    ...players.map((p) => ({ id: norm(p.name), name: p.name, active: true })),
+    ...members
+      .filter((m) => !activeIds.has(m.id))
+      .map((m) => ({ id: m.id, name: m.name, active: false })),
+  ];
+
+  const move = (index: number, delta: -1 | 1) => {
+    const target = index + delta;
+    if (target < 0 || target >= players.length) return;
+    const next = [...players];
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange(next);
+  };
+  const arrow =
+    "flex h-4 w-5 items-center justify-center rounded text-muted transition-colors hover:text-ink disabled:opacity-25 disabled:pointer-events-none";
 
   const count = players.length;
   const full = count >= maxPlayers;
@@ -91,15 +97,43 @@ export function GroupPlayerPicker({
 
       {rows.length > 0 && (
         <ul className="space-y-2">
-          {rows.map((row) => (
-            <li key={row.id}>
+          {rows.map((row, index) => (
+            <li key={row.id} className="flex items-center gap-2">
+              {row.active ? (
+                <span className="flex flex-col">
+                  <button
+                    type="button"
+                    className={arrow}
+                    onClick={() => move(index, -1)}
+                    disabled={index === 0}
+                    aria-label={`${row.name}: ${t.lobby.moveUp}`}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="m18 15-6-6-6 6" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className={arrow}
+                    onClick={() => move(index, 1)}
+                    disabled={index === count - 1}
+                    aria-label={`${row.name}: ${t.lobby.moveDown}`}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+                </span>
+              ) : (
+                <span className="w-5 shrink-0" aria-hidden />
+              )}
               <button
                 type="button"
                 onClick={() => toggle(row.id, row.name, row.active)}
                 aria-pressed={row.active}
                 disabled={!row.active && full}
                 className={cx(
-                  "flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors disabled:opacity-40",
+                  "flex min-w-0 flex-1 items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors disabled:opacity-40",
                   row.active
                     ? "border-primary bg-primary-soft/50 font-medium"
                     : "border-border hover:bg-field",

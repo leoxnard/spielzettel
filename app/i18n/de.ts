@@ -52,7 +52,8 @@ export const de = {
     moveUp: "Nach oben",
     moveDown: "Nach unten",
     pickPlayers: "Wer spielt mit?",
-    pickPlayersHint: "Tippe auf die Mitglieder, die mitspielen.",
+    pickPlayersHint:
+      "Tippe auf die Mitglieder, die mitspielen. Mit den Pfeilen änderst du die Reihenfolge.",
     addToGroup: "Neuen Namen zur Gruppe hinzufügen",
     whoStarts: "Wer beginnt?",
     whoStartsHint: "Tippe auf einen Namen oder lass das Glücksrad entscheiden.",
