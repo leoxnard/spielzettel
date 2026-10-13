@@ -13,8 +13,13 @@ describe("wizardRoundScore", () => {
     expect(wizardRoundScore({ bid: 4, tricks: 1 })).toBe(-30);
   });
 
-  it("treats incomplete entries as 0", () => {
-    expect(wizardRoundScore({ bid: 2, tricks: null })).toBe(0);
+  it("counts empty tricks as 0", () => {
+    expect(wizardRoundScore({ bid: 0, tricks: null })).toBe(20);
+    expect(wizardRoundScore({ bid: 2, tricks: null })).toBe(-20);
+  });
+
+  it("scores nothing without a bid", () => {
+    expect(wizardRoundScore({ bid: null, tricks: 2 })).toBe(0);
   });
 });
 

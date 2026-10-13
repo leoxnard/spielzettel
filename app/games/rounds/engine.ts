@@ -111,6 +111,21 @@ export function verdictOf<E extends Json, S extends BaseSettings>(
   });
 }
 
+/** Who leads right now — the winners if the game is ended early. */
+export function leaderIds<E extends Json, S extends BaseSettings>(
+  state: RoundsState<E, S>,
+  config: RoundsConfig<E, S>,
+  players: Player[],
+): string[] {
+  if (players.length === 0) return [];
+  const scores = totals(state, config, players);
+  if (config.leaders) return config.leaders({ totals: scores, state, players });
+  const low = config.leaderDirection?.(state.settings) === "low";
+  const values = players.map((p) => scores[p.id]);
+  const best = low ? Math.min(...values) : Math.max(...values);
+  return players.filter((p) => scores[p.id] === best).map((p) => p.id);
+}
+
 /** Shared verdict: game ends when someone reaches the (optional) limit. */
 export function limitVerdict(
   totals: Record<string, number>,

@@ -20,3 +20,14 @@ export function hasFinished(entries: (Phase10Entry | undefined)[]): boolean {
 export function phase10RoundScore(entry: Phase10Entry): number {
   return entry.points ?? 0;
 }
+
+/** Leaders: most phases completed, ties broken by fewest points. */
+export function phase10Leaders(
+  standings: { id: string; phasesDone: number; points: number }[],
+): string[] {
+  if (standings.length === 0) return [];
+  const most = Math.max(...standings.map((s) => s.phasesDone));
+  const ahead = standings.filter((s) => s.phasesDone === most);
+  const fewest = Math.min(...ahead.map((s) => s.points));
+  return ahead.filter((s) => s.points === fewest).map((s) => s.id);
+}

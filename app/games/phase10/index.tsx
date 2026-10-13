@@ -7,6 +7,7 @@ import { MiniStepper } from "../rounds/MiniStepper";
 import {
   hasFinished,
   phaseOf,
+  phase10Leaders,
   phase10RoundScore,
   type Phase10Entry,
 } from "./scoring";
@@ -42,6 +43,15 @@ export const phase10Definition = defineRoundsGame<Phase10Entry, BaseSettings>(
     turnChip: "starter",
     playerMeta: (playerId, state) =>
       t.phase10.phase(phaseOf(completedEntries(state, playerId))),
+    leaders: ({ state, totals, players }) =>
+      phase10Leaders(
+        players.map((p) => ({
+          id: p.id,
+          phasesDone: completedEntries(state, p.id).filter((e) => e?.done)
+            .length,
+          points: totals[p.id],
+        })),
+      ),
     verdict: ({ state, totals, players }) => {
       const finished = players.filter((p) =>
         hasFinished(completedEntries(state, p.id)),

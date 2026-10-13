@@ -11,6 +11,7 @@ import {
   playerRoundScore,
   teamOf,
   totals as computeTotals,
+  leaderIds,
   verdictOf,
 } from "./engine";
 import type { RoundsConfig, RoundsState } from "./types";
@@ -199,14 +200,7 @@ export function RoundsBoard<E extends Json, S extends BaseSettings>({
     isFinished && !verdict.over
       ? {
           over: true,
-          winnerIds: Object.entries(totals).length > 0
-            ? (() => {
-                const best = Math.max(...Object.values(totals));
-                return Object.entries(totals)
-                  .filter(([, v]) => v === best)
-                  .map(([id]) => id);
-              })()
-            : [],
+          winnerIds: leaderIds(state, config, players),
           reason: undefined,
         }
       : verdict;

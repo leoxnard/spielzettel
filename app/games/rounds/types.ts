@@ -67,6 +67,15 @@ export interface RoundsConfig<
    */
   leaderDirection?: (settings: S) => "high" | "low";
   /**
+   * Current leaders when ranking isn't just by total (e.g. Phase 10:
+   * highest phase first, then fewest points). Overrides leaderDirection.
+   */
+  leaders?: (ctx: {
+    totals: Record<string, number>;
+    state: RoundsState<E, S>;
+    players: Player[];
+  }) => string[];
+  /**
    * Cross-player sanity check for the current round's entries so far
    * (e.g. Wizard: total tricks taken can't exceed cards dealt). Return a
    * warning string to show it, or null/undefined when everything's fine.

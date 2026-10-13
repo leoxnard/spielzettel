@@ -1,7 +1,7 @@
 import { t } from "~/i18n/de";
 import type { Json, Player } from "~/lib/types";
 import type { BaseSettings, GameBoardProps, GameDefinition } from "../types";
-import { totals as computeTotals, verdictOf } from "./engine";
+import { leaderIds, verdictOf } from "./engine";
 import { RoundsBoard } from "./RoundsBoard";
 import type { RoundsConfig, RoundsGameMeta, RoundsState } from "./types";
 
@@ -46,11 +46,7 @@ export function defineRoundsGame<E extends Json, S extends BaseSettings>(
       const verdict = verdictOf(state, config, players);
       if (verdict.over) return verdict.winnerIds;
       // Not finished yet — report the current leader.
-      const scores = computeTotals(state, config, players);
-      const low = config.leaderDirection?.(state.settings) === "low";
-      const values = players.map((p) => scores[p.id]);
-      const best = low ? Math.min(...values) : Math.max(...values);
-      return players.filter((p) => scores[p.id] === best).map((p) => p.id);
+      return leaderIds(state, config, players);
     },
     groupLabel: config.groupLabel,
     Board,
