@@ -46,9 +46,10 @@ describe("matchesFilters", () => {
     expect(matchesFilters(doko, { ...EMPTY_FILTERS, decks: ["french52"] }, none)).toBe(false);
   });
 
-  it("keeps own-deck games unless excluded", () => {
+  it("keeps own-deck games unless excluded or a deck is chosen", () => {
     const uno = game({ decks: ["own"], ownDeckName: "Uno" });
-    expect(matchesFilters(uno, { ...EMPTY_FILTERS, decks: ["skat32"] }, none)).toBe(true);
+    expect(matchesFilters(uno, EMPTY_FILTERS, none)).toBe(true);
+    expect(matchesFilters(uno, { ...EMPTY_FILTERS, decks: ["skat32"] }, none)).toBe(false);
     expect(matchesFilters(uno, { ...EMPTY_FILTERS, includeOwn: false }, none)).toBe(false);
   });
 

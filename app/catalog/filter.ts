@@ -27,7 +27,7 @@ export interface CatalogFilters {
   players: number | null;
   /** empty = don't filter by material */
   decks: DeckId[];
-  /** Include games that need their own commercial deck. */
+  /** Include games that need their own commercial deck (no deck filter set). */
   includeOwn: boolean;
   categories: CategoryId[];
   /** Max. minutes, null = any */
@@ -72,7 +72,8 @@ export function matchesFilters(
   }
   const needsOwn = game.decks.every((d) => d === "own");
   if (needsOwn && !filters.includeOwn) return false;
-  if (filters.decks.length > 0 && !needsOwn) {
+  // A deck filter shows only games playable with those decks — no Uno & co.
+  if (filters.decks.length > 0) {
     const owned = expandDecks(filters.decks);
     if (!game.decks.some((d) => owned.has(d))) return false;
   }
@@ -99,7 +100,7 @@ export function activeFilterCount(filters: CatalogFilters): number {
   return (
     (filters.players !== null ? 1 : 0) +
     (filters.decks.length > 0 ? 1 : 0) +
-    (filters.includeOwn ? 0 : 1) +
+    (filters.includeOwn || filters.decks.length > 0 ? 0 : 1) +
     filters.categories.length +
     (filters.maxDuration !== null ? 1 : 0) +
     (filters.favoritesOnly ? 1 : 0)

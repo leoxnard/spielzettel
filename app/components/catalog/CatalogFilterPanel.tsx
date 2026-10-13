@@ -109,14 +109,17 @@ export function CatalogFilterPanel({
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-sm">{t.catalog.includeOwn}</span>
-            <Switch
-              checked={filters.includeOwn}
-              onChange={(includeOwn) => onChange({ includeOwn })}
-              label={t.catalog.includeOwn}
-            />
-          </div>
+          {/* With a deck chosen, own-material games are hidden anyway. */}
+          {filters.decks.length === 0 && (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm">{t.catalog.includeOwn}</span>
+              <Switch
+                checked={filters.includeOwn}
+                onChange={(includeOwn) => onChange({ includeOwn })}
+                label={t.catalog.includeOwn}
+              />
+            </div>
+          )}
         </>
       )}
     </div>
