@@ -29,7 +29,8 @@ export const wizardDefinition = defineRoundsGame<BidTricksEntry, BaseSettings>(
   },
   {
     emptyEntry: { bid: null, tricks: 0 },
-    isEntryComplete: (e) => e.bid !== null && e.tricks !== null,
+    // Empty tricks count as 0, so a bid alone completes an entry.
+    isEntryComplete: (e) => e.bid !== null,
     allowEmptyEntries: true,
     roundScore: (e) => wizardRoundScore(e),
     maxRounds: (players) => wizardMaxRounds(players.length),

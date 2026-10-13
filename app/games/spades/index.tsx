@@ -43,7 +43,8 @@ export const spadesDefinition = defineRoundsGame<BidTricksEntry, LimitSettings>(
   },
   {
     emptyEntry: { bid: null, tricks: 0 },
-    isEntryComplete: (e) => e.bid !== null && e.tricks !== null,
+    // Empty tricks count as 0, so a bid alone completes an entry.
+    isEntryComplete: (e) => e.bid !== null,
     allowEmptyEntries: true,
     roundScore: (e) => spadesRoundScore(e),
     totalScore: (entries) => spadesTotal(entries),
