@@ -42,7 +42,7 @@ export const spadesDefinition = defineRoundsGame<BidTricksEntry, LimitSettings>(
     ),
   },
   {
-    emptyEntry: { bid: null, tricks: null },
+    emptyEntry: { bid: null, tricks: 0 },
     isEntryComplete: (e) => e.bid !== null && e.tricks !== null,
     allowEmptyEntries: true,
     roundScore: (e) => spadesRoundScore(e),
@@ -64,10 +64,9 @@ export const spadesDefinition = defineRoundsGame<BidTricksEntry, LimitSettings>(
         0,
       );
       if (trickSum > 13) return t.spades.tricksOverflow(trickSum);
-      const allComplete = players.every((p) => {
-        const e = entries[p.id];
-        return e !== undefined && e.bid !== null && e.tricks !== null;
-      });
+      // Tricks default to 0, so only check once some have been entered.
+      const allComplete =
+        trickSum > 0 && players.every((p) => entries[p.id]?.bid != null);
       return allComplete && trickSum !== 13
         ? t.spades.tricksMismatch(trickSum)
         : null;

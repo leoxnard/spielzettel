@@ -28,7 +28,7 @@ export const wizardDefinition = defineRoundsGame<BidTricksEntry, BaseSettings>(
     defaultSettings: {},
   },
   {
-    emptyEntry: { bid: null, tricks: null },
+    emptyEntry: { bid: null, tricks: 0 },
     isEntryComplete: (e) => e.bid !== null && e.tricks !== null,
     allowEmptyEntries: true,
     roundScore: (e) => wizardRoundScore(e),
@@ -44,10 +44,9 @@ export const wizardDefinition = defineRoundsGame<BidTricksEntry, BaseSettings>(
       );
       if (trickSum > cards) return t.wizard.tooManyTricks(trickSum, cards);
       // Once everyone's tricks are in, they must total the cards dealt.
-      const allComplete = players.every((p) => {
-        const e = entries[p.id];
-        return e !== undefined && e.bid !== null && e.tricks !== null;
-      });
+      // Tricks default to 0, so only check once some have been entered.
+      const allComplete =
+        trickSum > 0 && players.every((p) => entries[p.id]?.bid != null);
       return allComplete && trickSum !== cards
         ? t.wizard.tricksMismatch(trickSum, cards)
         : null;

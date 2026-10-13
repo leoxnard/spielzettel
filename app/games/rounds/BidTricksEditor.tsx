@@ -36,7 +36,9 @@ export function BidTricksEditor({
         {label}
       </span>
       <MiniStepper
-        value={entry[key]}
+        // Empty tricks count as 0, so show them as 0; the bid stays "–"
+        // until entered, since 0 there is a real (nil) bid.
+        value={key === "tricks" ? (entry.tricks ?? 0) : entry.bid}
         onChange={(n) => onChange({ ...entry, [key]: n })}
         min={0}
         max={max}
