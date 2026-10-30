@@ -603,14 +603,41 @@ function SecretSettings({
 }
 
 function GamesList({ stats }: { stats: GroupStats }) {
+  const running = stats.games.filter((e) => e.game.status !== "finished");
+  const finished = stats.games.filter((e) => e.game.status === "finished");
+  if (stats.games.length === 0) {
+    return (
+      <Card className="p-5">
+        <p className="mb-3 font-display text-base font-semibold">{t.group.games}</p>
+        <p className="text-sm text-muted">{t.group.gamesEmpty}</p>
+      </Card>
+    );
+  }
+  return (
+    <>
+      <GamesCard title={t.group.runningGames} entries={running} empty={t.group.runningEmpty} />
+      {finished.length > 0 && <GamesCard title={t.group.finishedGames} entries={finished} />}
+    </>
+  );
+}
+
+function GamesCard({
+  title,
+  entries,
+  empty,
+}: {
+  title: string;
+  entries: GameEntry[];
+  empty?: string;
+}) {
   return (
     <Card className="p-5">
-      <p className="mb-3 font-display text-base font-semibold">{t.group.games}</p>
-      {stats.games.length === 0 ? (
-        <p className="text-sm text-muted">{t.group.gamesEmpty}</p>
+      <p className="mb-3 font-display text-base font-semibold">{title}</p>
+      {entries.length === 0 ? (
+        <p className="text-sm text-muted">{empty}</p>
       ) : (
         <ul className="divide-y divide-border/40">
-          {stats.games.map((entry) => (
+          {entries.map((entry) => (
             <GameRowItem key={entry.game.id} entry={entry} />
           ))}
         </ul>
@@ -638,7 +665,11 @@ function GameRowItem({ entry }: { entry: GameEntry }) {
       </Link>
       <span className="shrink-0 text-right text-xs">
         <span className="block text-primary">
-          {leaderNames.length > 0 ? t.group.leading(leaderNames.join(" & ")) : statusLine}
+          {leaderNames.length === 0
+            ? statusLine
+            : game.status === "finished"
+              ? t.group.won(leaderNames.join(" & "))
+              : t.group.leading(leaderNames.join(" & "))}
         </span>
         <span className="block text-muted">{relativeDate(game.created_at)}</span>
       </span>
