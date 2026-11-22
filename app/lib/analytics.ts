@@ -1,5 +1,5 @@
 /**
- * Umami, selbst gehostet auf analytics.leonardsima.de. Die Instanz läuft auf
+ * Umami, selbst gehostet auf analytics.leoshub.de. Die Instanz läuft auf
  * derselben Maschine wie die App, es verlässt also nichts unsere Infrastruktur.
  *
  * Website-ID und Host stehen bewusst hier und nicht in einer Env-Variable: die
@@ -11,9 +11,9 @@
  * keine Spiel-Codes. Nur Zähler und grobe Kategorien.
  */
 
-export const UMAMI_SRC = "https://analytics.leonardsima.de/script.js";
+export const UMAMI_SRC = "https://analytics.leoshub.de/script.js";
 export const UMAMI_WEBSITE_ID = "ab425a0b-8d66-41d2-93f4-9ad3fa8550e2";
-export const UMAMI_DOMAINS = "spielzettel.leonardsima.de";
+export const UMAMI_DOMAINS = "spielzettel.leoshub.de";
 
 /**
  * Ersetzt den Spiel- bzw. Gruppen-Code im Pfad durch einen Platzhalter.

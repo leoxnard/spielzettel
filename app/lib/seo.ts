@@ -2,7 +2,7 @@ import type { MetaDescriptor } from "react-router";
 
 import { t } from "~/i18n/de";
 
-export const SITE_URL = "https://spielzettel.leonardsima.de";
+export const SITE_URL = "https://spielzettel.leoshub.de";
 
 export function absoluteUrl(path: string) {
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
